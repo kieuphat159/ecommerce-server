@@ -27,3 +27,23 @@ exports.signup = async (req, res) => {
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
+
+exports.signin = async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    const user = await User.findByUsername(username);
+    if (!user) {
+      console.log(`Signin failed: Username ${username} not found`);
+      return res.status(400).json({ message: 'Invalid username or password' });
+    }
+    const isPasswordValid = await User.verifyPassword(password, user.password_hash);
+    if (!isPasswordValid) {
+      console.log(`Signin failed: Invalid password for username ${username}`);
+      return res.status(400).json({ message: 'Invalid username or password' });
+    }
+    res.status(200).json({ message: 'Signin successful', userId: user.id });
+  } catch (error) {
+    console.error('Signin error:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+}

@@ -28,6 +28,10 @@ class User {
     );
     return rows[0];
   }
+
+  static async verifyPassword(password, hasedPassword) {
+    return bcrypt.compare(password, hasedPassword);
+  }
 }
 
 module.exports = User;
