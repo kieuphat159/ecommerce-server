@@ -4,9 +4,16 @@ exports.signup = async (req, res) => {
   try {
     const { name, username, email, password, role } = req.body;
 
-    const existingUser = await User.findByEmail(email);
+    let existingUser = await User.findByEmail(email);
     if (existingUser) {
+      console.log(`Signup failed: Email ${email} already exists`);
       return res.status(400).json({ message: 'Email already exists' });
+    }
+    
+    existingUser = await User.findByUsername(username);
+    if (existingUser) {
+      console.log(`Signup failed: Username ${username} already exists`);
+      return res.status(400).json({ message: 'Username already exists' });
     }
 
     const userId = await User.create({ name, username, email, password, role });

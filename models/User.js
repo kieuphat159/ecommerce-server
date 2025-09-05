@@ -20,6 +20,14 @@ class User {
     );
     return rows[0];
   }
+
+  static async findByUsername(username) {
+    const [rows] = await db.execute(
+      'SELECT * FROM user WHERE username = ?',
+      [username]
+    );
+    return rows[0];
+  }
 }
 
 module.exports = User;
