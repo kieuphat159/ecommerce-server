@@ -1,4 +1,9 @@
 const User = require('../models/User');
+const jwt = require('jsonwebtoken');
+
+const generateToken = (userId, role) => {
+  return jwt.sign({ userId, role }, process.env.JWT_SECRET_KEY, { expiresIn: '30m' });
+}
 
 exports.signup = async (req, res) => {
   try {
@@ -41,9 +46,30 @@ exports.signin = async (req, res) => {
       console.log(`Signin failed: Invalid password for username ${username}`);
       return res.status(400).json({ message: 'Invalid username or password' });
     }
-    res.status(200).json({ message: 'Signin successful', userId: user.id });
+    const token = generateToken(user.id, user.role);
+    res.status(200).json({ 
+      message: 'Signin successful',
+      token, 
+      userId: user.id 
+    });
   } catch (error) {
     console.error('Signin error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
-}
+};
+
+exports.getSellerPage = (req, res) => {
+    try {
+      const { user, error } = verifyTokenFromRequest(req);
+      if (error) {
+        return res.status(401).json({ message: 'Unauthorized', error });
+      }
+      if (user.role !== 'seller') {
+        return res.status(403).json({ message: 'Forbidden: Access is allowed only for sellers' });
+      }
+      res.status(200).json({ message: 'Welcome to the Seller Page', userId: user.userId });
+    } catch (error) {
+      console.error('Get Seller Page error:', error);
+      res.status(500).json({ message: 'Server error', error: error.message });
+    }
+  };
