@@ -50,7 +50,8 @@ exports.signin = async (req, res) => {
     res.status(200).json({ 
       message: 'Signin successful',
       token, 
-      userId: user.id 
+      userId: user.id,
+      redirectTo: user.role === 'seller' ? '/seller' : '/'
     });
   } catch (error) {
     console.error('Signin error:', error);
