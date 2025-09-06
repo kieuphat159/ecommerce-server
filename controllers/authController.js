@@ -36,6 +36,7 @@ exports.signup = async (req, res) => {
 exports.signin = async (req, res) => {
   try {
     const { username, password } = req.body;
+    console.log("Signin body:", req.body);
     const user = await User.findByUsername(username);
     if (!user) {
       console.log(`Signin failed: Username ${username} not found`);
@@ -50,27 +51,10 @@ exports.signin = async (req, res) => {
     res.status(200).json({ 
       message: 'Signin successful',
       token, 
-      userId: user.id,
-      redirectTo: user.role === 'seller' ? '/seller' : '/'
+      userId: user.id
     });
   } catch (error) {
     console.error('Signin error:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 };
-
-exports.getSellerPage = (req, res) => {
-    try {
-      const { user, error } = verifyTokenFromRequest(req);
-      if (error) {
-        return res.status(401).json({ message: 'Unauthorized', error });
-      }
-      if (user.role !== 'seller') {
-        return res.status(403).json({ message: 'Forbidden: Access is allowed only for sellers' });
-      }
-      res.status(200).json({ message: 'Welcome to the Seller Page', userId: user.userId });
-    } catch (error) {
-      console.error('Get Seller Page error:', error);
-      res.status(500).json({ message: 'Server error', error: error.message });
-    }
-  };
