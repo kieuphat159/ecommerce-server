@@ -60,6 +60,62 @@ exports.getProductById = async (req, res) => {
     }
 }
 
+exports.getProductsBySellerId = async (req, res) => {
+  try {
+    const { sellerId } = req.params;
+    
+    // Validate sellerId
+    if (!sellerId || isNaN(parseInt(sellerId))) {
+      return res.status(400).json({
+        success: false,
+        message: 'Valid seller ID is required'
+      });
+    }
+    
+    const products = await productEAV.findBySellerId(parseInt(sellerId));
+    
+    if (!products || products.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No products found for this seller',
+        data: [],
+        count: 0
+      });
+    }
+    
+    const formattedProducts = products.map(product => ({
+      id: product.entity_id,
+      sku: product.sku,
+      name: product.name,
+      price: `$${parseFloat(product.price || 0).toFixed(2)}`,
+      image: product.image_path,
+      description: product.description,
+      seller_id: product.seller_id,
+      seller_name: product.seller_name,
+      status: product.status
+    }));
+    
+    res.json({
+      success: true,
+      message: `Found ${formattedProducts.length} products for seller`,
+      data: formattedProducts,
+      count: formattedProducts.length,
+      seller_info: {
+        seller_id: products[0].seller_id,
+        seller_name: products[0].seller_name
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error fetching products by seller:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching products',
+      error: error.message
+    });
+  }
+};
+
 exports.createProduct = async (req, res) => {
     const connection = await require('../config/database').getConnection(); // Giả sử bạn có file config database
     
@@ -75,7 +131,6 @@ exports.createProduct = async (req, res) => {
             });
         }
         
-        // Generate SKU
         const timestamp = Date.now();
         const sku = `PROD-${timestamp}`;
         

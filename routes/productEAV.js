@@ -8,8 +8,11 @@ router.get('/products', productEAVController.getAllProducts);
 
 router.get('/:id', productEAVController.getProductById);
 
-router.post('/create',
+router.get('/products:id', 
   //authMiddleware.authenticateToken,
+  productEAVController.getProductsBySellerId);
+
+router.post('/create',
   upload.single('image'),
   productEAVController.createProduct
 );

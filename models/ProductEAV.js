@@ -106,6 +106,70 @@ class ProductEAV {
     }
   }
 
+  static async findBySellerId(sellerId) {
+  const query = `
+    SELECT 
+      pe.entity_id,
+      pe.sku,
+      u.name as seller_name,
+      u.user_id as seller_id,
+      -- Name
+      pv_name.value as name,
+      -- Price  
+      pd_price.value as price,
+      -- Image
+      pv_image.value as image_path,
+      -- Description
+      pt_desc.value as description,
+      -- Status
+      pi_status.value as status
+    FROM product_entity pe
+    
+    -- Join name (varchar)
+    LEFT JOIN product_entity_varchar pv_name 
+      ON pe.entity_id = pv_name.entity_id 
+      AND pv_name.attribute_id = 1
+    
+    -- Join price (decimal)
+    LEFT JOIN product_entity_decimal pd_price 
+      ON pe.entity_id = pd_price.entity_id 
+      AND pd_price.attribute_id = 2
+      
+    -- Join image (varchar)
+    LEFT JOIN product_entity_varchar pv_image 
+      ON pe.entity_id = pv_image.entity_id 
+      AND pv_image.attribute_id = 3
+      
+    -- Join description (text)
+    LEFT JOIN product_entity_text pt_desc 
+      ON pe.entity_id = pt_desc.entity_id 
+      AND pt_desc.attribute_id = 4
+      
+    -- Join status (int)
+    LEFT JOIN product_entity_int pi_status 
+      ON pe.entity_id = pi_status.entity_id 
+      AND pi_status.attribute_id = 5
+      
+    -- Join seller (int)
+    LEFT JOIN product_entity_int pi_seller 
+      ON pe.entity_id = pi_seller.entity_id 
+      AND pi_seller.attribute_id = 6
+      
+    -- Join user table for seller info
+    LEFT JOIN user u ON pi_seller.value = u.user_id
+    
+    WHERE pi_seller.value = ? AND pi_status.value = 1
+    ORDER BY pe.entity_id DESC
+  `;
+  
+  try {
+    const [rows] = await db.execute(query, [sellerId]);
+    return rows;
+  } catch (error) {
+    throw error;
+  }
+}
+
   static async create(productData) {
     const { sku, name, price, image_path, description, seller_id, status = 1, category } = productData;
     
