@@ -8,7 +8,10 @@ const productsRoutes = require('./routes/productEAV')
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: 'http://localhost:5173', // chỉ định origin cụ thể
+  credentials: true,               // cho phép gửi cookie
+}));
 app.use(express.json());
 
 app.use('/api/auth', authRoutes);

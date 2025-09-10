@@ -107,12 +107,11 @@ class ProductEAV {
   }
 
   static async create(productData) {
-    const { sku, name, price, image_path, description, seller_id } = productData;
+    const { sku, name, price, image_path, description, seller_id, status = 1, category } = productData;
     
     try {
       await db.execute('START TRANSACTION');
       
-      // Insert product entity
       const [entityResult] = await db.execute(
         'INSERT INTO product_entity (entity_type_id, attribute_set_id, sku) VALUES (1, 1, ?)',
         [sku]
@@ -120,10 +119,8 @@ class ProductEAV {
       
       const entityId = entityResult.insertId;
       
-      // Insert attributes
       const insertPromises = [];
       
-      // Name (varchar)
       if (name) {
         insertPromises.push(
           db.execute(
@@ -133,17 +130,15 @@ class ProductEAV {
         );
       }
       
-      // Price (decimal)
-      if (price) {
+      if (price !== undefined && price !== null) {
         insertPromises.push(
           db.execute(
             'INSERT INTO product_entity_decimal (entity_id, attribute_id, value) VALUES (?, 2, ?)',
-            [entityId, price]
+            [entityId, parseFloat(price)]
           )
         );
       }
       
-      // Image (varchar)
       if (image_path) {
         insertPromises.push(
           db.execute(
@@ -153,7 +148,6 @@ class ProductEAV {
         );
       }
       
-      // Description (text)
       if (description) {
         insertPromises.push(
           db.execute(
@@ -163,35 +157,59 @@ class ProductEAV {
         );
       }
       
-      // Status (int) - default active = 1
       insertPromises.push(
         db.execute(
-          'INSERT INTO product_entity_int (entity_id, attribute_id, value) VALUES (?, 5, 1)',
-          [entityId]
+          'INSERT INTO product_entity_int (entity_id, attribute_id, value) VALUES (?, 5, ?)',
+          [entityId, parseInt(status)]
         )
       );
       
-      // Seller ID (int)
       if (seller_id) {
         insertPromises.push(
           db.execute(
             'INSERT INTO product_entity_int (entity_id, attribute_id, value) VALUES (?, 6, ?)',
-            [entityId, seller_id]
+            [entityId, parseInt(seller_id)]
           )
         );
       }
       
-      // Execute all inserts
       await Promise.all(insertPromises);
       
-      // Commit transaction
+      if (category) {
+        const [categoryRows] = await db.execute(
+          'SELECT category_id FROM category WHERE name = ? AND is_active = 1',
+          [category]
+        );
+        
+        if (categoryRows.length > 0) {
+          await db.execute(
+            'INSERT INTO category_product (category_id, product_id, position) VALUES (?, ?, 0)',
+            [categoryRows[0].category_id, entityId]
+          );
+        }
+      }
+      
       await db.execute('COMMIT');
       
       return entityId;
       
     } catch (error) {
-      // Rollback on error
       await db.execute('ROLLBACK');
+      throw error;
+    }
+  }
+
+  // Xoa product (soft delete)
+  static async softDelete(entityId) {
+    try {
+      await db.execute(
+        `INSERT INTO product_entity_int (entity_id, attribute_id, value) 
+         VALUES (?, 5, 0) 
+         ON DUPLICATE KEY UPDATE value = 0`,
+        [entityId]
+      );
+      return true;
+    } catch (error) {
       throw error;
     }
   }
