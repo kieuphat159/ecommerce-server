@@ -267,6 +267,7 @@ class ProductEAV {
   // Xoa product (soft delete)
   static async softDelete(entityId) {
     try {
+      // attr id = 5: status
       await db.execute(
         `INSERT INTO product_entity_int (entity_id, attribute_id, value) 
          VALUES (?, 5, 0) 
