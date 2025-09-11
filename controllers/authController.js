@@ -59,9 +59,9 @@ exports.signin = async (req, res) => {
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
     res.status(200).json({ 
-      message: 'Signin successful',
+      message: 'Signin successfully',
       token, 
-      userId: user.id
+      userId: user.user_id
     });
   } catch (error) {
     console.error('Signin error:', error);

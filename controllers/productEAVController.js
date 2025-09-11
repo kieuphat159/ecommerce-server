@@ -62,7 +62,7 @@ exports.getProductById = async (req, res) => {
 
 exports.getProductsBySellerId = async (req, res) => {
   try {
-    const { sellerId } = req.params;
+    const { id: sellerId } = req.params;
     
     // Validate sellerId
     if (!sellerId || isNaN(parseInt(sellerId))) {
@@ -117,13 +117,15 @@ exports.getProductsBySellerId = async (req, res) => {
 };
 
 exports.createProduct = async (req, res) => {
-    const connection = await require('../config/database').getConnection(); // Giả sử bạn có file config database
-    
     try {
-        await connection.beginTransaction();
+        const { name, price, description, category, status = 1, sellerId } = req.body;
         
-        const { name, price, image, description, category, status = 1, sellerId } = req.body;
+        let imagePath = null;
+        if (req.file) {
+            imagePath = `/uploads/${req.file.filename}`;
+        }
         
+        // Validation
         if (!name || !price || !sellerId) {
             return res.status(400).json({
                 success: false,
@@ -131,77 +133,51 @@ exports.createProduct = async (req, res) => {
             });
         }
         
+        // Validate price
+        const numericPrice = parseFloat(price);
+        if (isNaN(numericPrice) || numericPrice <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Price must be a valid positive number'
+            });
+        }
+        
+        // Validate sellerId
+        const numericSellerId = parseInt(sellerId);
+        if (isNaN(numericSellerId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'Seller ID must be a valid number'
+            });
+        }
+        
         const timestamp = Date.now();
-        const sku = `PROD-${timestamp}`;
+        const randomString = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const sku = `PROD-${timestamp}-${randomString}`;
         
-        const [productResult] = await connection.execute(
-            'INSERT INTO product_entity (entity_type_id, attribute_set_id, sku) VALUES (?, ?, ?)',
-            [1, 1, sku] 
-        );
+        const productData = {
+            sku: sku,
+            name: name.trim(),
+            price: numericPrice,
+            image_path: imagePath,
+            description: description ? description.trim() : null,
+            seller_id: numericSellerId,
+            status: parseInt(status) || 1,
+            category: category ? category.trim() : null
+        };
         
-        const entityId = productResult.insertId;
-        
-        
-        await connection.execute(
-            'INSERT INTO product_entity_varchar (entity_id, attribute_id, value) VALUES (?, ?, ?)',
-            [entityId, 1, name]
-        );
-        
-        await connection.execute(
-            'INSERT INTO product_entity_decimal (entity_id, attribute_id, value) VALUES (?, ?, ?)',
-            [entityId, 2, parseFloat(price)]
-        );
-        
-        if (image) {
-            await connection.execute(
-                'INSERT INTO product_entity_varchar (entity_id, attribute_id, value) VALUES (?, ?, ?)',
-                [entityId, 3, image]
-            );
-        }
-        
-        if (description) {
-            await connection.execute(
-                'INSERT INTO product_entity_text (entity_id, attribute_id, value) VALUES (?, ?, ?)',
-                [entityId, 4, description]
-            );
-        }
-        
-        await connection.execute(
-            'INSERT INTO product_entity_int (entity_id, attribute_id, value) VALUES (?, ?, ?)',
-            [entityId, 5, parseInt(status)]
-        );
-        
-        await connection.execute(
-            'INSERT INTO product_entity_int (entity_id, attribute_id, value) VALUES (?, ?, ?)',
-            [entityId, 6, parseInt(sellerId)]
-        );
-        
-        if (category) {
-            const [categoryResult] = await connection.execute(
-                'SELECT category_id FROM category WHERE name = ? AND is_active = 1',
-                [category]
-            );
-            
-            if (categoryResult.length > 0) {
-                await connection.execute(
-                    'INSERT INTO category_product (category_id, product_id) VALUES (?, ?)',
-                    [categoryResult[0].category_id, entityId]
-                );
-            }
-        }
-        
-        await connection.commit();
+        const entityId = await productEAV.create(productData);
         
         const formattedProduct = {
             id: entityId,
             sku: sku,
-            name: name,
-            price: `$${parseFloat(price).toFixed(2)}`,
-            image: image || null,
-            description: description || null,
-            seller: parseInt(sellerId),
-            status: parseInt(status),
-            category: category || null
+            name: productData.name,
+            price: `$${productData.price.toFixed(2)}`,
+            image: productData.image_path,
+            description: productData.description,
+            seller: productData.seller_id,
+            status: productData.status,
+            category: productData.category
         };
         
         res.status(201).json({
@@ -211,17 +187,15 @@ exports.createProduct = async (req, res) => {
         });
         
     } catch (error) {
-        await connection.rollback();
         console.error('Error creating product:', error);
         res.status(500).json({
             success: false,
             message: 'Error creating product',
-            error: error.message
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
         });
-    } finally {
-        connection.release();
     }
 };
+
 
 exports.getProductWithCategory = async (req, res) => {
     try {
@@ -262,3 +236,40 @@ exports.getProductWithCategory = async (req, res) => {
     }
 };
 
+exports.deleteProduct = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!id || isNaN(parseInt(id))) {
+            return res.status(400).json({
+                success: false,
+                message: 'Valid product ID is required'
+            });
+        }
+        const existingProduct = await productEAV.findById(parseInt(id));
+        if (!existingProduct) {
+            return res.status(404).json({
+                success: false,
+                message: 'Product not found'
+            });
+        }
+        
+        const result = await productEAV.softDelete(parseInt(id));
+        
+        if (result) {
+            res.json({
+                success: true,
+                message: 'Product deleted successfully'
+            });
+        } else {
+            throw new Error('Failed to delete product');
+        }
+        
+    } catch (error) {
+        console.error('Error deleting product:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error deleting product',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+        });
+    }
+}
