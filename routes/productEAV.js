@@ -10,7 +10,6 @@ router.get('/seller/products/:id',
   productEAVController.getProductsBySellerId);
 
 router.delete('/seller/product/:id',
-  authMiddleware.authenticateToken,
   productEAVController.deleteProduct
 )
 
