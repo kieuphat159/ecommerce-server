@@ -1,7 +1,8 @@
 const db = require('../config/database');
 
 class ProductEAV {
-  
+  // attr_id = 5: status
+
   // Lay tat ca voi attr
   static async findAll() {
     const query = `
@@ -172,9 +173,9 @@ class ProductEAV {
 
   static async create(productData) {
     const { sku, name, price, image_path, description, seller_id, status = 1, category } = productData;
-    
+    const connection = await db.getConnection();
     try {
-      await db.execute('START TRANSACTION');
+      await connection.beginTransaction();
       
       const [entityResult] = await db.execute(
         'INSERT INTO product_entity (entity_type_id, attribute_set_id, sku) VALUES (1, 1, ?)',
@@ -188,8 +189,8 @@ class ProductEAV {
       if (name) {
         insertPromises.push(
           db.execute(
-            'INSERT INTO product_entity_varchar (entity_id, attribute_id, value) VALUES (?, 1, ?)',
-            [entityId, name]
+            'INSERT INTO product_entity_varchar (entity_id, attribute_id, value) VALUES (?, ?, ?)',
+            [entityId, 1, name]
           )
         );
       }
@@ -197,8 +198,8 @@ class ProductEAV {
       if (price !== undefined && price !== null) {
         insertPromises.push(
           db.execute(
-            'INSERT INTO product_entity_decimal (entity_id, attribute_id, value) VALUES (?, 2, ?)',
-            [entityId, parseFloat(price)]
+            'INSERT INTO product_entity_decimal (entity_id, attribute_id, value) VALUES (?, ?, ?)',
+            [entityId, 2, parseFloat(price)]
           )
         );
       }
@@ -206,49 +207,49 @@ class ProductEAV {
       if (image_path) {
         insertPromises.push(
           db.execute(
-            'INSERT INTO product_entity_varchar (entity_id, attribute_id, value) VALUES (?, 3, ?)',
-            [entityId, image_path]
+            'INSERT INTO product_entity_varchar (entity_id, attribute_id, value) VALUES (?, ?, ?)',
+            [entityId, 3, image_path]
           )
         );
       }
       
-      if (description) {
+      if (description && description !== '') {
         insertPromises.push(
           db.execute(
-            'INSERT INTO product_entity_text (entity_id, attribute_id, value) VALUES (?, 4, ?)',
-            [entityId, description]
+            'INSERT INTO product_entity_text (entity_id, attribute_id, value) VALUES (?, ?, ?)',
+            [entityId, 4, description]
           )
         );
       }
       
       insertPromises.push(
         db.execute(
-          'INSERT INTO product_entity_int (entity_id, attribute_id, value) VALUES (?, 5, ?)',
-          [entityId, parseInt(status)]
+          'INSERT INTO product_entity_int (entity_id, attribute_id, value) VALUES (?, ?, ?)',
+          [entityId, 5, parseInt(status)]
         )
       );
       
       if (seller_id) {
         insertPromises.push(
           db.execute(
-            'INSERT INTO product_entity_int (entity_id, attribute_id, value) VALUES (?, 6, ?)',
-            [entityId, parseInt(seller_id)]
+            'INSERT INTO product_entity_int (entity_id, attribute_id, value) VALUES (?, ?, ?)',
+            [entityId, 6, parseInt(seller_id)]
           )
         );
       }
       
       await Promise.all(insertPromises);
       
-      if (category) {
+      if (category && category !== '') {
         const [categoryRows] = await db.execute(
-          'SELECT category_id FROM category WHERE name = ? AND is_active = 1',
-          [category]
+          'SELECT category_id FROM category WHERE name = ? AND is_active = ?',
+          [category, 1]
         );
         
         if (categoryRows.length > 0) {
           await db.execute(
-            'INSERT INTO category_product (category_id, product_id, position) VALUES (?, ?, 0)',
-            [categoryRows[0].category_id, entityId]
+            'INSERT INTO category_product (category_id, product_id, position) VALUES (?, ?, ?)',
+            [categoryRows[0].category_id, entityId, 0]
           );
         }
       }
@@ -266,115 +267,14 @@ class ProductEAV {
   // Xoa product (soft delete)
   static async softDelete(entityId) {
     try {
-      console.log('Attempting to soft delete entity:', entityId);
-      
-      if (!entityId || isNaN(entityId)) {
-        throw new Error('Invalid entityId provided');
-      }
-      
-      const checkDuplicate = await db.execute(
-        `SELECT COUNT(*) as count FROM product_entity_int 
-        WHERE entity_id = ? AND attribute_id = 5`,
+      await db.execute(
+        `INSERT INTO product_entity_int (entity_id, attribute_id, value) 
+         VALUES (?, 5, 0) 
+         ON DUPLICATE KEY UPDATE value = 0`,
         [entityId]
       );
-      
-      console.log('Duplicate check:', checkDuplicate[0]);
-      
-      if (checkDuplicate[0][0].count > 1) {
-        console.log('Found duplicate records, cleaning up...');
-        
-        await db.execute(
-          `DELETE FROM product_entity_int 
-          WHERE entity_id = ? AND attribute_id = 5`,
-          [entityId]
-        );
-        
-        const result = await db.execute(
-          `INSERT INTO product_entity_int (entity_id, attribute_id, value) 
-          VALUES (?, 5, 0)`,
-          [entityId]
-        );
-        
-        console.log('Clean insert result:', result);
-        
-      } else {
-        const result = await db.execute(
-          `INSERT INTO product_entity_int (entity_id, attribute_id, value) 
-          VALUES (?, 5, 0) 
-          ON DUPLICATE KEY UPDATE value = 0`,
-          [entityId]
-        );
-        
-        console.log('Database execution result:', result);
-      }
-      
-      const verifyResult = await db.execute(
-        `SELECT value FROM product_entity_int 
-        WHERE entity_id = ? AND attribute_id = 5`,
-        [entityId]
-      );
-      
-      console.log('Verification result:', verifyResult[0]);
-      
-      if (verifyResult[0].length === 1 && verifyResult[0][0].value === 0) {
-        console.log('Soft delete successful for entity:', entityId);
-        return true;
-      } else {
-        console.error('Soft delete verification failed');
-        console.error('Expected 1 record with value 0, got:', verifyResult[0]);
-        return false;
-      }
-      
-    } catch (error) {
-      console.error('Error in softDelete:', error);
-      console.error('EntityId:', entityId);
-      throw error;
-    }
-  }
-
-  static async cleanupDuplicateStatuses() {
-    try {
-      const duplicates = await db.execute(`
-        SELECT entity_id, COUNT(*) as count 
-        FROM product_entity_int 
-        WHERE attribute_id = 5 
-        GROUP BY entity_id 
-        HAVING COUNT(*) > 1
-      `);
-      
-      console.log('Found entities with duplicate status:', duplicates[0]);
-      
-      for (const duplicate of duplicates[0]) {
-        const entityId = duplicate.entity_id;
-        console.log(`Cleaning up entity ${entityId}...`);
-        
-        const currentStatus = await db.execute(
-          `SELECT value FROM product_entity_int 
-          WHERE entity_id = ? AND attribute_id = 5 
-          ORDER BY value_id LIMIT 1`,
-          [entityId]
-        );
-        
-        const statusValue = currentStatus[0][0]?.value || 1;
-        
-        await db.execute(
-          `DELETE FROM product_entity_int 
-          WHERE entity_id = ? AND attribute_id = 5`,
-          [entityId]
-        );
-        
-        await db.execute(
-          `INSERT INTO product_entity_int (entity_id, attribute_id, value) 
-          VALUES (?, 5, ?)`,
-          [entityId, statusValue]
-        );
-        
-        console.log(`Cleaned up entity ${entityId} with status ${statusValue}`);
-      }
-      
       return true;
     } catch (error) {
-      console.error('Error cleaning up duplicates:', error);
       throw error;
     }
   }
