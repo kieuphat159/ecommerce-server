@@ -153,6 +153,80 @@ exports.createProduct = async (req, res) => {
     }
 };
 
+exports.updateProduct = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, price, image, description, category, status, sellerId } = req.body;        
+        if (!id || isNaN(parseInt(id))) {
+            return res.status(400).json({
+                success: false,
+                message: 'Valid product ID is required'
+            });
+        }
+
+        if (!name || name.trim() === '') {
+            return res.status(400).json({
+                success: false,
+                message: 'Product name is required'
+            });
+        }
+
+        if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Valid price is required'
+            });
+        }
+
+        if (!sellerId || isNaN(parseInt(sellerId))) {
+            return res.status(400).json({
+                success: false,
+                message: 'Valid seller ID is required'
+            });
+        }    
+        
+        const existingProduct = await ProductEAV.findById(id);
+        if (!existingProduct) {
+            return res.status(404).json({
+                success: false,
+                message: 'Product not found'
+            });
+        }
+        
+        const productData = {
+            sku: existingProduct.sku,
+            name: name,
+            price: parseFloat(price),
+            image_path: image,
+            description: description,
+            category: category,
+            status: status !== undefined ? parseInt(status) : existingProduct.status,
+            seller_id: parseInt(sellerId)
+        };
+        
+        
+        const result = await ProductEAV.update(id, productData);
+        
+        if (result) {
+            res.status(200).json({
+                success: true,
+                message: "Update successful",
+                data: productData
+            });
+        } else {
+            throw new Error('Update failed');
+        }
+        
+    } catch (err) {
+        console.error('Update controller error:', err);
+        res.status(500).json({
+            success: false,
+            message: 'Error updating product',
+            error: err.message
+        });
+    }
+}
+
 exports.deleteProduct = async (req, res) => {
     console.log('delete');
     try {
@@ -161,13 +235,6 @@ exports.deleteProduct = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: 'Valid product ID is required'
-            });
-        }
-        const existingProduct = await productEAV.findById(parseInt(id));
-        if (!existingProduct) {
-            return res.status(404).json({
-                success: false,
-                message: 'Product not found'
             });
         }
         

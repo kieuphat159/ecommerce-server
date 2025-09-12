@@ -6,7 +6,7 @@ class ProductEAV {
   // Lay tat ca voi attr
   static async findAll() {
     const query = `
-      SELECT 
+      SELECT DISTINCT
         pe.entity_id,
         pe.sku,
         u.name as seller_name,
@@ -264,6 +264,142 @@ class ProductEAV {
     }
   }
 
+ static async update(entityId, productData) {
+  
+  const { sku, name, price, image_path, description, seller_id, status, category } = productData;
+  const connection = await db.getConnection();
+  
+  try {
+    await connection.beginTransaction();
+    
+    if (sku) {
+      await connection.execute(
+        'UPDATE product_entity SET sku = ? WHERE entity_id = ?',
+        [sku, entityId]
+      );
+    }
+    
+    const updatePromises = [];
+    
+    // Update name (attribute_id = 1)
+    if (name !== undefined && name !== null) {
+      updatePromises.push(
+        connection.execute(
+          `INSERT INTO product_entity_varchar (entity_id, attribute_id, value) 
+          VALUES (?, 1, ?) 
+          ON DUPLICATE KEY UPDATE value = VALUES(value)`,
+          [entityId, name]
+        ).then(() => console.log('Name updated successfully'))
+        .catch(err => console.error('Name update failed:', err))
+      );
+    }
+    
+    if (price !== undefined && price !== null) {
+      console.log('Preparing price update:', price, 'Type:', typeof price);
+      updatePromises.push(
+        connection.execute(
+          `INSERT INTO product_entity_decimal (entity_id, attribute_id, value) 
+          VALUES (?, 2, ?) 
+          ON DUPLICATE KEY UPDATE value = VALUES(value)`,
+          [entityId, parseFloat(price)]
+        ).then(() => console.log('Price updated successfully'))
+        .catch(err => console.error('Price update failed:', err))
+      );
+    }
+    
+    if (image_path !== undefined && image_path !== null) {
+      console.log('Preparing image update:', image_path);
+      updatePromises.push(
+        connection.execute(
+          `INSERT INTO product_entity_varchar (entity_id, attribute_id, value) 
+          VALUES (?, 3, ?) 
+          ON DUPLICATE KEY UPDATE value = VALUES(value)`,
+          [entityId, image_path]
+        ).then(() => console.log('Image updated successfully'))
+        .catch(err => console.error('Image update failed:', err))
+      );
+    }
+    
+    if (description !== undefined && description !== null) {
+      console.log('Preparing description update:', description);
+      updatePromises.push(
+        connection.execute(
+          `INSERT INTO product_entity_text (entity_id, attribute_id, value) 
+          VALUES (?, 4, ?) 
+          ON DUPLICATE KEY UPDATE value = VALUES(value)`,
+          [entityId, description]
+        ).then(() => console.log('Description updated successfully'))
+        .catch(err => console.error('Description update failed:', err))
+      );
+    }
+    
+    if (status !== undefined && status !== null) {
+      updatePromises.push(
+        connection.execute(
+          `INSERT INTO product_entity_int (entity_id, attribute_id, value) 
+          VALUES (?, 5, ?) 
+          ON DUPLICATE KEY UPDATE value = VALUES(value)`,
+          [entityId, parseInt(status)]
+        ).then(() => console.log('Status updated successfully'))
+        .catch(err => console.error('Status update failed:', err))
+      );
+    }
+    
+    if (seller_id !== undefined && seller_id !== null) {
+      updatePromises.push(
+        connection.execute(
+          `INSERT INTO product_entity_int (entity_id, attribute_id, value) 
+          VALUES (?, 6, ?) 
+          ON DUPLICATE KEY UPDATE value = VALUES(value)`,
+          [entityId, parseInt(seller_id)]
+        ).then(() => console.log('Seller ID updated successfully'))
+        .catch(err => console.error('Seller ID update failed:', err))
+      );
+    }
+    
+    const results = await Promise.allSettled(updatePromises);
+    
+    results.forEach((result, index) => {
+      if (result.status === 'rejected') {
+        console.error(`Update operation ${index} failed:`, result.reason);
+      }
+    });
+    
+    if (category !== undefined) {
+      
+      await connection.execute(
+        'DELETE FROM category_product WHERE product_id = ?',
+        [entityId]
+      );
+      
+      if (category && category !== '') {
+        const [categoryRows] = await connection.execute(
+          'SELECT category_id FROM category WHERE name = ? AND is_active = ?',
+          [category, 1]
+        );
+        
+        if (categoryRows.length > 0) {
+          await connection.execute(
+            'INSERT INTO category_product (category_id, product_id, position) VALUES (?, ?, ?)',
+            [categoryRows[0].category_id, entityId, 0]
+          );
+        }
+      }
+    }
+    
+    await connection.commit();
+    console.log('UPDATE COMPLETED SUCCESSFULLY');
+    return true;
+    
+  } catch (error) {
+    console.error('UPDATE ERROR', error);
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+    console.log('Connection released');
+  }
+}
   // Xoa product (soft delete)
   static async softDelete(entityId) {
     try {

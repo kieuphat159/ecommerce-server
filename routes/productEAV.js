@@ -9,9 +9,17 @@ router.get('/seller/products/:id',
   //authMiddleware.authenticateToken,
   productEAVController.getProductsBySellerId);
 
+router.get('/seller/product/:id',
+  productEAVController.getProductById
+);
+
+router.put('/seller/product/:id',
+  productEAVController.updateProduct
+);
+
 router.delete('/seller/product/:id',
   productEAVController.deleteProduct
-)
+);
 
 router.get('/:id', productEAVController.getProductById);
 
