@@ -255,6 +255,10 @@ class ProductEAV {
       }
       
       await db.execute('COMMIT');
+      res.status(200).json({
+        success: true,
+        data: productData
+      })
       
       return entityId;
       

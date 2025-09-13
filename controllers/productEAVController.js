@@ -138,6 +138,7 @@ exports.createProduct = async (req, res) => {
         res.status(201).json({
             success: true,
             message: 'Product created successfully',
+            data: productData
         });
         
     } catch (error) {
