@@ -259,11 +259,13 @@ class ProductEAV {
         success: true,
         data: productData
       })
+      console.log('Create in model: ', productData);
       
       return entityId;
       
     } catch (error) {
       await db.execute('ROLLBACK');
+      console.log('Fail');
       throw error;
     }
   }
