@@ -140,6 +140,7 @@ exports.createProduct = async (req, res) => {
             message: 'Product created successfully',
             data: productData
         });
+        console.log('Create: ', productData);
         
     } catch (error) {
         await connection.rollback();
