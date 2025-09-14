@@ -9,7 +9,8 @@ const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   ssl: {
-    ca: process.env.DB_CA
+    ca: process.env.DB_CA ? process.env.DB_CA.replace(/\\n/g, '\n') : undefined,
+    rejectUnauthorized: true
   }
 });
 

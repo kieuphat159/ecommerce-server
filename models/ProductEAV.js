@@ -1,15 +1,45 @@
 const db = require('../config/database');
 
 class ProductEAV {
-  // attr_id = 5: status
+  // Helper method to get attribute ID by code
+  static async getAttributeId(code) {
+    const query = 'SELECT attribute_id FROM attribute WHERE code = ?';
+    try {
+      const [rows] = await db.execute(query, [code]);
+      return rows[0]?.attribute_id || null;
+    } catch (error) {
+      console.error(`Error getting attribute ID for ${code}:`, error);
+      return null;
+    }
+  }
 
-  // Lay tat ca voi attr
+  // Helper method to check if product belongs to clothes category
+  static async isClothesProduct(entityId) {
+    const query = `
+      SELECT COUNT(*) as count 
+      FROM category_product cp
+      JOIN category c ON cp.category_id = c.category_id
+      WHERE cp.product_id = ? AND (c.name = 'Clothes' OR c.parent_id IN (
+        SELECT category_id FROM category WHERE name = 'Clothes'
+      ))
+    `;
+    try {
+      const [rows] = await db.execute(query, [entityId]);
+      return rows[0].count > 0;
+    } catch (error) {
+      console.error('Error checking clothes category:', error);
+      return false;
+    }
+  }
+
+  // Updated findAll method with size and color
   static async findAll() {
     const query = `
       SELECT DISTINCT
         pe.entity_id,
         pe.sku,
         u.name as seller_name,
+        u.user_id as seller_id,
         -- Name
         pv_name.value as name,
         -- Price  
@@ -19,7 +49,13 @@ class ProductEAV {
         -- Description
         pt_desc.value as description,
         -- Status
-        pi_status.value as status
+        pi_status.value as status,
+        -- Size (for clothes)
+        pv_size.value as size,
+        -- Color (for clothes)
+        pv_color.value as color,
+        -- Categories
+        GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') as categories
       FROM product_entity pe
       
       -- Join name (varchar)
@@ -51,11 +87,27 @@ class ProductEAV {
       LEFT JOIN product_entity_int pi_seller 
         ON pe.entity_id = pi_seller.entity_id 
         AND pi_seller.attribute_id = 6
+
+      -- Join size (varchar) - for clothes
+      LEFT JOIN product_entity_varchar pv_size 
+        ON pe.entity_id = pv_size.entity_id 
+        AND pv_size.attribute_id = (SELECT attribute_id FROM attribute WHERE code = 'size')
+
+      -- Join color (varchar) - for clothes
+      LEFT JOIN product_entity_varchar pv_color 
+        ON pe.entity_id = pv_color.entity_id 
+        AND pv_color.attribute_id = (SELECT attribute_id FROM attribute WHERE code = 'color')
         
       -- Join user table for seller name
       LEFT JOIN user u ON pi_seller.value = u.user_id
+
+      -- Join categories
+      LEFT JOIN category_product cp ON pe.entity_id = cp.product_id
+      LEFT JOIN category c ON cp.category_id = c.category_id
       
       WHERE pi_status.value = 1
+      GROUP BY pe.entity_id, pe.sku, u.name, u.user_id, pv_name.value, pd_price.value, 
+               pv_image.value, pt_desc.value, pi_status.value, pv_size.value, pv_color.value
       ORDER BY pe.entity_id DESC
     `;
     
@@ -67,7 +119,7 @@ class ProductEAV {
     }
   }
 
-  // Lay product theo Id
+  // Updated findById method with size and color
   static async findById(entityId) {
     const query = `
       SELECT 
@@ -79,7 +131,13 @@ class ProductEAV {
         pd_price.value as price,
         pv_image.value as image_path,
         pt_desc.value as description,
-        pi_status.value as status
+        pi_status.value as status,
+        -- Size (for clothes)
+        pv_size.value as size,
+        -- Color (for clothes)  
+        pv_color.value as color,
+        -- Categories
+        GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') as categories
       FROM product_entity pe
       
       LEFT JOIN product_entity_varchar pv_name 
@@ -94,9 +152,26 @@ class ProductEAV {
         ON pe.entity_id = pi_status.entity_id AND pi_status.attribute_id = 5
       LEFT JOIN product_entity_int pi_seller 
         ON pe.entity_id = pi_seller.entity_id AND pi_seller.attribute_id = 6
+
+      -- Join size (varchar) - for clothes
+      LEFT JOIN product_entity_varchar pv_size 
+        ON pe.entity_id = pv_size.entity_id 
+        AND pv_size.attribute_id = (SELECT attribute_id FROM attribute WHERE code = 'size')
+
+      -- Join color (varchar) - for clothes
+      LEFT JOIN product_entity_varchar pv_color 
+        ON pe.entity_id = pv_color.entity_id 
+        AND pv_color.attribute_id = (SELECT attribute_id FROM attribute WHERE code = 'color')
+
       LEFT JOIN user u ON pi_seller.value = u.user_id
+
+      -- Join categories
+      LEFT JOIN category_product cp ON pe.entity_id = cp.product_id
+      LEFT JOIN category c ON cp.category_id = c.category_id
       
       WHERE pe.entity_id = ? AND pi_status.value = 1
+      GROUP BY pe.entity_id, pe.sku, u.name, u.user_id, pv_name.value, pd_price.value, 
+               pv_image.value, pt_desc.value, pi_status.value, pv_size.value, pv_color.value
     `;
     
     try {
@@ -107,6 +182,7 @@ class ProductEAV {
     }
   }
 
+  // Updated findBySellerId method with size and color
   static async findBySellerId(sellerId) {
     const query = `
       SELECT 
@@ -123,7 +199,13 @@ class ProductEAV {
         -- Description
         pt_desc.value as description,
         -- Status
-        pi_status.value as status
+        pi_status.value as status,
+        -- Size (for clothes)
+        pv_size.value as size,
+        -- Color (for clothes)
+        pv_color.value as color,
+        -- Categories
+        GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') as categories
       FROM product_entity pe
       
       -- Join name (varchar)
@@ -155,11 +237,27 @@ class ProductEAV {
       LEFT JOIN product_entity_int pi_seller 
         ON pe.entity_id = pi_seller.entity_id 
         AND pi_seller.attribute_id = 6
+
+      -- Join size (varchar) - for clothes
+      LEFT JOIN product_entity_varchar pv_size 
+        ON pe.entity_id = pv_size.entity_id 
+        AND pv_size.attribute_id = (SELECT attribute_id FROM attribute WHERE code = 'size')
+
+      -- Join color (varchar) - for clothes
+      LEFT JOIN product_entity_varchar pv_color 
+        ON pe.entity_id = pv_color.entity_id 
+        AND pv_color.attribute_id = (SELECT attribute_id FROM attribute WHERE code = 'color')
         
       -- Join user table for seller info
       LEFT JOIN user u ON pi_seller.value = u.user_id
+
+      -- Join categories
+      LEFT JOIN category_product cp ON pe.entity_id = cp.product_id
+      LEFT JOIN category c ON cp.category_id = c.category_id
       
       WHERE pi_seller.value = ? AND pi_status.value = 1
+      GROUP BY pe.entity_id, pe.sku, u.name, u.user_id, pv_name.value, pd_price.value, 
+               pv_image.value, pt_desc.value, pi_status.value, pv_size.value, pv_color.value
       ORDER BY pe.entity_id DESC
     `;
     
@@ -169,15 +267,17 @@ class ProductEAV {
     } catch (error) {
       throw error;
     }
-}
+  }
 
+  // Updated create method with size and color support
   static async create(productData) {
-    const { sku, name, price, image_path, description, seller_id, status = 1, category } = productData;
+    const { sku, name, price, image_path, description, seller_id, status = 1, category, size, color } = productData;
     const connection = await db.getConnection();
+    
     try {
       await connection.beginTransaction();
       
-      const [entityResult] = await db.execute(
+      const [entityResult] = await connection.execute(
         'INSERT INTO product_entity (entity_type_id, attribute_set_id, sku) VALUES (1, 1, ?)',
         [sku]
       );
@@ -186,9 +286,10 @@ class ProductEAV {
       
       const insertPromises = [];
       
+      // Standard attributes
       if (name) {
         insertPromises.push(
-          db.execute(
+          connection.execute(
             'INSERT INTO product_entity_varchar (entity_id, attribute_id, value) VALUES (?, ?, ?)',
             [entityId, 1, name]
           )
@@ -197,7 +298,7 @@ class ProductEAV {
       
       if (price !== undefined && price !== null) {
         insertPromises.push(
-          db.execute(
+          connection.execute(
             'INSERT INTO product_entity_decimal (entity_id, attribute_id, value) VALUES (?, ?, ?)',
             [entityId, 2, parseFloat(price)]
           )
@@ -206,7 +307,7 @@ class ProductEAV {
       
       if (image_path) {
         insertPromises.push(
-          db.execute(
+          connection.execute(
             'INSERT INTO product_entity_varchar (entity_id, attribute_id, value) VALUES (?, ?, ?)',
             [entityId, 3, image_path]
           )
@@ -215,7 +316,7 @@ class ProductEAV {
       
       if (description && description !== '') {
         insertPromises.push(
-          db.execute(
+          connection.execute(
             'INSERT INTO product_entity_text (entity_id, attribute_id, value) VALUES (?, ?, ?)',
             [entityId, 4, description]
           )
@@ -223,7 +324,7 @@ class ProductEAV {
       }
       
       insertPromises.push(
-        db.execute(
+        connection.execute(
           'INSERT INTO product_entity_int (entity_id, attribute_id, value) VALUES (?, ?, ?)',
           [entityId, 5, parseInt(status)]
         )
@@ -231,153 +332,48 @@ class ProductEAV {
       
       if (seller_id) {
         insertPromises.push(
-          db.execute(
+          connection.execute(
             'INSERT INTO product_entity_int (entity_id, attribute_id, value) VALUES (?, ?, ?)',
             [entityId, 6, parseInt(seller_id)]
           )
         );
       }
-      
-      await Promise.all(insertPromises);
-      
-      if (category && category !== '') {
-        const [categoryRows] = await db.execute(
-          'SELECT category_id FROM category WHERE name = ? AND is_active = ?',
-          [category, 1]
-        );
-        
-        if (categoryRows.length > 0) {
-          await db.execute(
-            'INSERT INTO category_product (category_id, product_id, position) VALUES (?, ?, ?)',
-            [categoryRows[0].category_id, entityId, 0]
+
+      // Check if this is a clothes product and add size/color
+      const isClothes = category && (
+        category.toLowerCase().includes('clothes') || 
+        category.toLowerCase().includes('dress') || 
+        category.toLowerCase().includes('shirt') || 
+        category.toLowerCase().includes('jeans')
+      );
+
+      if (isClothes) {
+        // Get size and color attribute IDs
+        const sizeAttrId = await this.getAttributeId('size');
+        const colorAttrId = await this.getAttributeId('color');
+
+        if (size && sizeAttrId) {
+          insertPromises.push(
+            connection.execute(
+              'INSERT INTO product_entity_varchar (entity_id, attribute_id, value) VALUES (?, ?, ?)',
+              [entityId, sizeAttrId, size]
+            )
+          );
+        }
+
+        if (color && colorAttrId) {
+          insertPromises.push(
+            connection.execute(
+              'INSERT INTO product_entity_varchar (entity_id, attribute_id, value) VALUES (?, ?, ?)',
+              [entityId, colorAttrId, color]
+            )
           );
         }
       }
       
-      await db.execute('COMMIT');
-      res.status(200).json({
-        success: true,
-        data: productData
-      })
-      console.log('Create in model: ', productData);
+      await Promise.all(insertPromises);
       
-      return entityId;
-      
-    } catch (error) {
-      await db.execute('ROLLBACK');
-      console.log('Fail');
-      throw error;
-    }
-  }
-
- static async update(entityId, productData) {
-  
-  const { sku, name, price, image_path, description, seller_id, status, category } = productData;
-  const connection = await db.getConnection();
-  
-  try {
-    await connection.beginTransaction();
-    
-    if (sku) {
-      await connection.execute(
-        'UPDATE product_entity SET sku = ? WHERE entity_id = ?',
-        [sku, entityId]
-      );
-    }
-    
-    const updatePromises = [];
-    
-    // Update name (attribute_id = 1)
-    if (name !== undefined && name !== null) {
-      updatePromises.push(
-        connection.execute(
-          `INSERT INTO product_entity_varchar (entity_id, attribute_id, value) 
-          VALUES (?, 1, ?) 
-          ON DUPLICATE KEY UPDATE value = VALUES(value)`,
-          [entityId, name]
-        ).then(() => console.log('Name updated successfully'))
-        .catch(err => console.error('Name update failed:', err))
-      );
-    }
-    
-    if (price !== undefined && price !== null) {
-      console.log('Preparing price update:', price, 'Type:', typeof price);
-      updatePromises.push(
-        connection.execute(
-          `INSERT INTO product_entity_decimal (entity_id, attribute_id, value) 
-          VALUES (?, 2, ?) 
-          ON DUPLICATE KEY UPDATE value = VALUES(value)`,
-          [entityId, parseFloat(price)]
-        ).then(() => console.log('Price updated successfully'))
-        .catch(err => console.error('Price update failed:', err))
-      );
-    }
-    
-    if (image_path !== undefined && image_path !== null) {
-      console.log('Preparing image update:', image_path);
-      updatePromises.push(
-        connection.execute(
-          `INSERT INTO product_entity_varchar (entity_id, attribute_id, value) 
-          VALUES (?, 3, ?) 
-          ON DUPLICATE KEY UPDATE value = VALUES(value)`,
-          [entityId, image_path]
-        ).then(() => console.log('Image updated successfully'))
-        .catch(err => console.error('Image update failed:', err))
-      );
-    }
-    
-    if (description !== undefined && description !== null) {
-      console.log('Preparing description update:', description);
-      updatePromises.push(
-        connection.execute(
-          `INSERT INTO product_entity_text (entity_id, attribute_id, value) 
-          VALUES (?, 4, ?) 
-          ON DUPLICATE KEY UPDATE value = VALUES(value)`,
-          [entityId, description]
-        ).then(() => console.log('Description updated successfully'))
-        .catch(err => console.error('Description update failed:', err))
-      );
-    }
-    
-    if (status !== undefined && status !== null) {
-      updatePromises.push(
-        connection.execute(
-          `INSERT INTO product_entity_int (entity_id, attribute_id, value) 
-          VALUES (?, 5, ?) 
-          ON DUPLICATE KEY UPDATE value = VALUES(value)`,
-          [entityId, parseInt(status)]
-        ).then(() => console.log('Status updated successfully'))
-        .catch(err => console.error('Status update failed:', err))
-      );
-    }
-    
-    if (seller_id !== undefined && seller_id !== null) {
-      updatePromises.push(
-        connection.execute(
-          `INSERT INTO product_entity_int (entity_id, attribute_id, value) 
-          VALUES (?, 6, ?) 
-          ON DUPLICATE KEY UPDATE value = VALUES(value)`,
-          [entityId, parseInt(seller_id)]
-        ).then(() => console.log('Seller ID updated successfully'))
-        .catch(err => console.error('Seller ID update failed:', err))
-      );
-    }
-    
-    const results = await Promise.allSettled(updatePromises);
-    
-    results.forEach((result, index) => {
-      if (result.status === 'rejected') {
-        console.error(`Update operation ${index} failed:`, result.reason);
-      }
-    });
-    
-    if (category !== undefined) {
-      
-      await connection.execute(
-        'DELETE FROM category_product WHERE product_id = ?',
-        [entityId]
-      );
-      
+      // Handle category assignment
       if (category && category !== '') {
         const [categoryRows] = await connection.execute(
           'SELECT category_id FROM category WHERE name = ? AND is_active = ?',
@@ -391,25 +387,180 @@ class ProductEAV {
           );
         }
       }
+      
+      await connection.commit();
+      console.log('Create in model: ', productData);
+      
+      return entityId;
+      
+    } catch (error) {
+      await connection.rollback();
+      console.log('Create failed:', error);
+      throw error;
+    } finally {
+      connection.release();
     }
-    
-    await connection.commit();
-    console.log('UPDATE COMPLETED SUCCESSFULLY');
-    return true;
-    
-  } catch (error) {
-    console.error('UPDATE ERROR', error);
-    await connection.rollback();
-    throw error;
-  } finally {
-    connection.release();
-    console.log('Connection released');
   }
-}
-  // Xoa product (soft delete)
+
+  // Updated update method with size and color support
+  static async update(entityId, productData) {
+    const { sku, name, price, image_path, description, seller_id, status, category, size, color } = productData;
+    const connection = await db.getConnection();
+    
+    try {
+      await connection.beginTransaction();
+      
+      if (sku) {
+        await connection.execute(
+          'UPDATE product_entity SET sku = ? WHERE entity_id = ?',
+          [sku, entityId]
+        );
+      }
+      
+      const updatePromises = [];
+      
+      // Standard attribute updates
+      if (name !== undefined && name !== null) {
+        updatePromises.push(
+          connection.execute(
+            `INSERT INTO product_entity_varchar (entity_id, attribute_id, value) 
+            VALUES (?, 1, ?) 
+            ON DUPLICATE KEY UPDATE value = VALUES(value)`,
+            [entityId, name]
+          )
+        );
+      }
+      
+      if (price !== undefined && price !== null) {
+        updatePromises.push(
+          connection.execute(
+            `INSERT INTO product_entity_decimal (entity_id, attribute_id, value) 
+            VALUES (?, 2, ?) 
+            ON DUPLICATE KEY UPDATE value = VALUES(value)`,
+            [entityId, parseFloat(price)]
+          )
+        );
+      }
+      
+      if (image_path !== undefined && image_path !== null) {
+        updatePromises.push(
+          connection.execute(
+            `INSERT INTO product_entity_varchar (entity_id, attribute_id, value) 
+            VALUES (?, 3, ?) 
+            ON DUPLICATE KEY UPDATE value = VALUES(value)`,
+            [entityId, image_path]
+          )
+        );
+      }
+      
+      if (description !== undefined && description !== null) {
+        updatePromises.push(
+          connection.execute(
+            `INSERT INTO product_entity_text (entity_id, attribute_id, value) 
+            VALUES (?, 4, ?) 
+            ON DUPLICATE KEY UPDATE value = VALUES(value)`,
+            [entityId, description]
+          )
+        );
+      }
+      
+      if (status !== undefined && status !== null) {
+        updatePromises.push(
+          connection.execute(
+            `INSERT INTO product_entity_int (entity_id, attribute_id, value) 
+            VALUES (?, 5, ?) 
+            ON DUPLICATE KEY UPDATE value = VALUES(value)`,
+            [entityId, parseInt(status)]
+          )
+        );
+      }
+      
+      if (seller_id !== undefined && seller_id !== null) {
+        updatePromises.push(
+          connection.execute(
+            `INSERT INTO product_entity_int (entity_id, attribute_id, value) 
+            VALUES (?, 6, ?) 
+            ON DUPLICATE KEY UPDATE value = VALUES(value)`,
+            [entityId, parseInt(seller_id)]
+          )
+        );
+      }
+
+      // Handle size and color updates for clothes products
+      const isClothes = await this.isClothesProduct(entityId) || (category && (
+        category.toLowerCase().includes('clothes') || 
+        category.toLowerCase().includes('dress') || 
+        category.toLowerCase().includes('shirt') || 
+        category.toLowerCase().includes('jeans')
+      ));
+
+      if (isClothes) {
+        const sizeAttrId = await this.getAttributeId('size');
+        const colorAttrId = await this.getAttributeId('color');
+
+        if (size !== undefined && size !== null && sizeAttrId) {
+          updatePromises.push(
+            connection.execute(
+              `INSERT INTO product_entity_varchar (entity_id, attribute_id, value) 
+              VALUES (?, ?, ?) 
+              ON DUPLICATE KEY UPDATE value = VALUES(value)`,
+              [entityId, sizeAttrId, size]
+            )
+          );
+        }
+
+        if (color !== undefined && color !== null && colorAttrId) {
+          updatePromises.push(
+            connection.execute(
+              `INSERT INTO product_entity_varchar (entity_id, attribute_id, value) 
+              VALUES (?, ?, ?) 
+              ON DUPLICATE KEY UPDATE value = VALUES(value)`,
+              [entityId, colorAttrId, color]
+            )
+          );
+        }
+      }
+      
+      await Promise.allSettled(updatePromises);
+      
+      // Handle category update
+      if (category !== undefined) {
+        await connection.execute(
+          'DELETE FROM category_product WHERE product_id = ?',
+          [entityId]
+        );
+        
+        if (category && category !== '') {
+          const [categoryRows] = await connection.execute(
+            'SELECT category_id FROM category WHERE name = ? AND is_active = ?',
+            [category, 1]
+          );
+          
+          if (categoryRows.length > 0) {
+            await connection.execute(
+              'INSERT INTO category_product (category_id, product_id, position) VALUES (?, ?, ?)',
+              [categoryRows[0].category_id, entityId, 0]
+            );
+          }
+        }
+      }
+      
+      await connection.commit();
+      console.log('UPDATE COMPLETED SUCCESSFULLY');
+      return true;
+      
+    } catch (error) {
+      console.error('UPDATE ERROR', error);
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  // Soft delete method remains the same
   static async softDelete(entityId) {
     try {
-      // attr id = 5: status
       await db.execute(
         `INSERT INTO product_entity_int (entity_id, attribute_id, value) 
          VALUES (?, 5, 0) 
