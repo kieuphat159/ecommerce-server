@@ -5,6 +5,7 @@ require('dotenv').config();
 const authRoutes = require('./routes/auth');
 const uploadRoutes = require('./routes/upload')
 const productsRoutes = require('./routes/productEAV')
+const categoriesRoutes = require('./routes/category')
 
 const app = express();
 
@@ -18,11 +19,13 @@ app.use('/api/auth', authRoutes);
 
 app.use('/api', uploadRoutes)
 
+app.use('/api', categoriesRoutes);
+
 app.use('/api', productsRoutes);
 
 const PORT = process.env.PORT;
-//app.listen(PORT, () => {
-//  console.log(`Server running on port ${PORT}`);
-//});
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
+});
 
 module.exports = app;
