@@ -42,6 +42,45 @@ class ProductOption {
             throw err;
         }
     }
+
+    static async hasVariants(entityId) {
+        const query = `
+            SELECT COUNT(*) as count
+            FROM product_option
+            WHERE product_id = ?
+        `;
+        try {
+            const [rows] = await db.execute(query, [entityId]);
+            return rows[0].count > 0;
+        } catch (err) {
+            throw err;
+        }
+    }
+
+    static async getOrCreateVariantId(entityId, options = {}) {
+        const queryCheck = `
+            SELECT pv.variant_id, pv.sku
+            FROM product_variant pv
+            WHERE pv.product_id = ?
+        `;
+        try {
+            const [existingVariants] = await db.execute(queryCheck, [entityId]);
+
+            if (existingVariants.length > 0) {
+                return existingVariants[0].variant_id;
+            }
+
+            const sku = `${entityId}-DEFAULT-001`;
+            const queryInsert = `
+                INSERT INTO product_variant (product_id, sku, price)
+                VALUES (?, ?, (SELECT value FROM product_entity_decimal WHERE entity_id = ? AND attribute_id = 2))
+            `;
+            const [result] = await db.execute(queryInsert, [entityId, sku, entityId]);
+            return result.insertId;
+        } catch (err) {
+            throw err;
+        }
+    }
 }
 
 module.exports = ProductOption;

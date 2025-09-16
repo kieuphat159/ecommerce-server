@@ -1,6 +1,25 @@
 const db = require('../config/database');
 
 class Stock {
+    static async getVariantIdByOptions(entityId, options) {
+        const query = `
+            SELECT pv.variant_id
+            FROM product_variant pv
+            JOIN product_variant_option_value pvov ON pv.variant_id = pvov.variant_id
+            JOIN product_option_value pov ON pvov.value_id = pov.value_id
+            JOIN product_option po ON pov.option_id = po.option_id
+            WHERE pv.product_id = ? AND pov.value IN (?, ?)
+            GROUP BY pv.variant_id
+            HAVING COUNT(DISTINCT po.code) = 2
+        `;
+        try {
+            const [rows] = await db.execute(query, [entityId, options.size, options.color]);
+            return rows.length > 0 ? rows[0].variant_id : null;
+        } catch (err) {
+            throw err;
+        }
+    }
+
     static async getAllStocks() {
         const query = `
             SELECT stock_id, stock_name
@@ -43,6 +62,29 @@ class Stock {
         }
     }
 
+    static async addStockQuantity(entityId, stockId, quantity, options = {}) {
+    try {
+        let variantId;
+
+        if (await ProductOption.hasVariants(entityId)) {
+            variantId = await ProductOption.getVariantIdByOptions(entityId, options);
+            if (!variantId) {
+                variantId = await ProductOption.getOrCreateVariantId(entityId);
+            }
+        } else {
+            variantId = await ProductOption.getOrCreateVariantId(entityId);
+        }
+
+        const currentStock = await Stock.getStockQuantity(variantId);
+        const newQuantity = currentStock.quantity + quantity;
+
+        await Stock.updateStockQuantity(variantId, stockId, newQuantity);
+
+        return { success: true, variantId, newQuantity };
+    } catch (err) {
+        throw err;
+    }
+}
     static async getAllStockQuantities(entityId) {
         const query = `
             SELECT pv.variant_id, pv.sku, isi.quantity, is.stock_name
