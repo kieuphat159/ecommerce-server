@@ -81,6 +81,37 @@ class ProductOption {
             throw err;
         }
     }
+
+
+    static async getVariantIdByOptions(entityId, options) {
+    try {
+        const valueIds = Object.values(options).filter(v => v !== null);
+
+
+        if (valueIds.length === 0) {
+            return null;
+        }
+
+        const placeholders = valueIds.map(() => '?').join(',');
+        const query = `
+            SELECT pv.variant_id
+            FROM product_variant pv
+            JOIN product_variant_option_value pvov ON pv.variant_id = pvov.variant_id
+            WHERE pv.product_id = ? 
+              AND pvov.value_id IN (${placeholders})
+            GROUP BY pv.variant_id
+            HAVING COUNT(DISTINCT pvov.value_id) = ?
+        `;
+
+        const [rows] = await db.execute(query, [entityId, ...valueIds, valueIds.length]);
+
+        return rows.length > 0 ? rows[0].variant_id : null;
+    } catch (err) {
+        throw err;
+    }
+}
+
+
 }
 
 module.exports = ProductOption;

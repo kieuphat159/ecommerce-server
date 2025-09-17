@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const ProductOption = require('../models/ProductOption')
 
 class Stock {
     static async getVariantIdByOptions(entityId, options) {
@@ -35,9 +36,9 @@ class Stock {
 
     static async getStockQuantity(variantId) {
         const query = `
-            SELECT isi.quantity, is.stock_name
+            SELECT isi.quantity, st.stock_name
             FROM inventory_stock_item isi
-            JOIN inventory_stock is ON isi.stock_id = is.stock_id
+            JOIN inventory_stock st ON isi.stock_id = st.stock_id
             WHERE isi.variant_id = ?
         `;
         try {
@@ -63,28 +64,57 @@ class Stock {
     }
 
     static async addStockQuantity(entityId, stockId, quantity, options = {}) {
-    try {
-        let variantId;
+        try {
 
-        if (await ProductOption.hasVariants(entityId)) {
-            variantId = await ProductOption.getVariantIdByOptions(entityId, options);
-            if (!variantId) {
+            let variantId;
+
+            if (await ProductOption.hasVariants(entityId)) {
+                variantId = await ProductOption.getVariantIdByOptions(entityId, options);
+
+                if (!variantId) {
+                    variantId = await ProductOption.getOrCreateVariantId(entityId, options);
+                }
+            } else {
                 variantId = await ProductOption.getOrCreateVariantId(entityId);
             }
-        } else {
-            variantId = await ProductOption.getOrCreateVariantId(entityId);
+
+            const [rows] = await db.execute(
+                `SELECT item_id, quantity 
+                FROM inventory_stock_item 
+                WHERE variant_id = ? AND stock_id = ?`,
+                [variantId, stockId]
+            );
+
+            let newQuantity;
+
+            if (rows.length > 0) {
+                const currentQuantity = rows[0].quantity || 0;
+                newQuantity = currentQuantity + quantity;
+
+                await db.execute(
+                    `UPDATE inventory_stock_item 
+                    SET quantity = ? 
+                    WHERE variant_id = ? AND stock_id = ?`,
+                    [newQuantity, variantId, stockId]
+                );
+
+            } else {
+            newQuantity = quantity;
+
+            await db.execute(
+                `INSERT INTO inventory_stock_item (variant_id, stock_id, quantity) 
+                VALUES (?, ?, ?)`,
+                [variantId, stockId, newQuantity]
+            );
+
+            }
+
+            return { success: true, variantId, newQuantity };
+        } catch (err) {
+            throw err;
         }
-
-        const currentStock = await Stock.getStockQuantity(variantId);
-        const newQuantity = currentStock.quantity + quantity;
-
-        await Stock.updateStockQuantity(variantId, stockId, newQuantity);
-
-        return { success: true, variantId, newQuantity };
-    } catch (err) {
-        throw err;
     }
-}
+
     static async getAllStockQuantities(entityId) {
         const query = `
             SELECT pv.variant_id, pv.sku, isi.quantity, is.stock_name
