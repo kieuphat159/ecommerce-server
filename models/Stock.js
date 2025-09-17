@@ -34,16 +34,25 @@ class Stock {
         }
     }
 
-    static async getStockQuantity(variantId) {
-        const query = `
+    static async getStockQuantity(variantId, stockId = null) {
+        let query = `
             SELECT isi.quantity, st.stock_name
             FROM inventory_stock_item isi
             JOIN inventory_stock st ON isi.stock_id = st.stock_id
             WHERE isi.variant_id = ?
         `;
+        let params = [variantId];
+        if (stockId) {
+            query += ` AND isi.stock_id = ?`;
+            params.push(stockId);
+        }
         try {
-            const [rows] = await db.execute(query, [variantId]);
-            return rows.length > 0 ? rows[0] : { quantity: 0, stock_name: null };
+            const [rows] = await db.execute(query, params);
+            if (stockId) {
+                return rows.length > 0 ? rows[0] : { quantity: 0, stock_name: null };
+            } else {
+                return rows;
+            }
         } catch (err) {
             throw err;
         }
@@ -134,4 +143,3 @@ class Stock {
 }
 
 module.exports = Stock;
-

@@ -82,3 +82,16 @@ exports.createOptionValue = async (req, res) => {
     res.status(500).json({ success: false, message: 'Error creating option value', error: err.message });
   }
 };
+
+exports.getVariantIdByOptions = async (req, res) => {
+  try {
+    const { product_id, options } = req.body;
+    if (!product_id) {
+      return res.status(400).json({ success: false, message: 'Missing product_id' });
+    }
+    const variantId = await ProductOption.getVariantIdByOptions(product_id, options);
+    res.json({ success: true, variantId });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Error getting variantId', error: err.message });
+  }
+};
