@@ -1,6 +1,7 @@
 const db = require('../config/database');
 
 class ProductOption {
+    static db = db;
     static async getAllOption(entityId) {
         const query = `
             SELECT po.option_id, po.name

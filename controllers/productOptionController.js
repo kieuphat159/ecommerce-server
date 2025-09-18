@@ -64,6 +64,7 @@ exports.createOption = async (req, res) => {
 };
 
 exports.createOptionValue = async (req, res) => {
+  console.log('ok');
   try {
     const { option_id, value } = req.body;
     if (!option_id || !value) {
@@ -80,6 +81,7 @@ exports.createOptionValue = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error creating option value', error: err.message });
+    console.log('Err: ', err);
   }
 };
 
