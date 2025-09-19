@@ -7,7 +7,8 @@ const uploadRoutes = require('./routes/upload')
 const productsRoutes = require('./routes/productEAV')
 const categoriesRoutes = require('./routes/category')
 const stockRoutes = require('./routes/stock')
-const productOptions = require('./routes/productOption')
+const productOptionsRoutes = require('./routes/productOption')
+const cartRoutes = require('./routes/cart')
 
 const app = express();
 
@@ -27,7 +28,9 @@ app.use('/api', productsRoutes);
 
 app.use('/api', stockRoutes);
 
-app.use('/api', productOptions);
+app.use('/api', productOptionsRoutes);
+
+app.use('/api', cartRoutes);
 
 const PORT = process.env.PORT;
 app.listen(PORT, () => {
