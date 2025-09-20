@@ -45,13 +45,12 @@ class Cart {
             const eps = 1e-5;
 
             if (Math.abs(unit_price - dbPrice) > eps || Math.abs(total_price - sumPrice) > eps) {
-                console.log('Price is not match');
+                console.log('Price is not match: ',total_price, ", ", sumPrice);
                 return;
             }
 
             await conn.beginTransaction();
 
-            // kiểm tra giỏ hàng đã có variant chưa
             const [rows] = await conn.query(`
                 SELECT cart_item_id, quantity
                 FROM cart_item
@@ -168,6 +167,41 @@ class Cart {
             return rows;
         } catch (err) {
             throw err;
+        }
+    }
+
+    static async removeCartItem(cart_item_id) {
+        const connection = await db.getConnection();
+        try {
+            const [rows] = await connection.query(`
+                SELECT total_price, cart_id
+                FROM cart_item
+                WHERE cart_item_id = ?
+            `, [cart_item_id]
+            )
+            if (rows.length === 0) {
+                throw new Error("Cart item không tồn tại");
+            }
+            const price = rows[0].total_price;
+            const cart_id = rows[0].cart_id;
+            await connection.beginTransaction();
+            await connection.query(`
+                DELETE FROM cart_item
+                WHERE cart_item_id = ?
+            `, [cart_item_id]
+            );
+            await connection.query(`
+                UPDATE cart
+                SET total_amount = total_amount - ?
+                WHERE cart_id = ?
+            `, [price, cart_id]
+            )
+            await connection.commit();
+        } catch (err) {
+            await connection.rollback();
+            throw err;
+        } finally {
+            connection.release();
         }
     }
 }

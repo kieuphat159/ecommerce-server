@@ -42,13 +42,16 @@ exports.getCartItem = async (req, res) => {
     }
 }
 
-exports.updateCartQuantity = async (req, res) => {
+exports.removeCartItem = async (req, res) => {
     try {
-        const { userId, cartItemId } = req.params;
-        const { quantity } = req.body;
-
-        if (quantity < 1) {
-            return res.status(400).json({ success: false, message: "Quantity must be >= 1" });
-        }
-    } catch (err) {}
+        const { cartItemId } = req.params;
+        console.log(cartItemId);
+        await cart.removeCartItem(cartItemId);
+        res.json({
+            success: true,
+            message: 'Remove item successful'
+        });
+    } catch (err) {
+        console.log('Err: ', err);
+    }
 }
