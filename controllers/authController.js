@@ -61,7 +61,8 @@ exports.signin = async (req, res) => {
     res.status(200).json({ 
       message: 'Signin successfully',
       token, 
-      userId: user.user_id
+      userId: user.user_id,
+      role: user.role
     });
   } catch (error) {
     console.error('Signin error:', error);

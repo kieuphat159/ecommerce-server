@@ -2,9 +2,9 @@ const cart = require('../models/Cart')
 
 exports.addToCart = async (req, res) => {
     try {
-        const userId = req.params;
-        const {varianId, quantity, unit_price, total_price} = req.body;
-        if (!userId || !varianId || quantity == null || unit_price == null || total_price == null) {
+        const { userId } = req.params;
+        const {variantId, quantity, unit_price, total_price} = req.body;
+        if (!userId || !variantId || quantity == null || unit_price == null || total_price == null) {
             const msg = 'Missing value';
             console.log('Err: ', msg);
             return res.status(500).json({
@@ -12,7 +12,7 @@ exports.addToCart = async (req, res) => {
                 message: msg
             })
         }
-        const result = await cart.addToCart(userId, varianId, quantity, unit_price, total_price);
+        const result = await cart.addToCart(userId, variantId, quantity, unit_price, total_price);
         res.json({
             success: true,
             data: result
@@ -40,4 +40,15 @@ exports.getCartItem = async (req, res) => {
             error: err.message
         })
     }
+}
+
+exports.updateCartQuantity = async (req, res) => {
+    try {
+        const { userId, cartItemId } = req.params;
+        const { quantity } = req.body;
+
+        if (quantity < 1) {
+            return res.status(400).json({ success: false, message: "Quantity must be >= 1" });
+        }
+    } catch (err) {}
 }

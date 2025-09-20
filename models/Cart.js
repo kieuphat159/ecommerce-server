@@ -40,8 +40,11 @@ class Cart {
                 throw new Error("Variant không tồn tại");
             }
 
-            const sumPrice = check[0].price * quantity;
-            if (unit_price !== check[0].price || sumPrice !== total_price) {
+            const dbPrice = parseFloat(check[0].price);
+            const sumPrice = dbPrice * quantity;
+            const eps = 1e-5;
+
+            if (Math.abs(unit_price - dbPrice) > eps || Math.abs(total_price - sumPrice) > eps) {
                 console.log('Price is not match');
                 return;
             }
@@ -87,14 +90,85 @@ class Cart {
     }
 
     static async getCartItem(userId) {
-        const [rows] = await db.query(`
-            SELECT c.cart_id, ci.cart_item_id, ci.variant_id, ci.quantity, ci.unit_price, ci.total_price
-            FROM cart c
-            JOIN cart_item ci ON c.cart_id = ci.cart_id
-            WHERE c.user_id = ? AND c.status = 'pending'
-        `, [userId]);
+        try {
+            const [rows] = await db.query(`
+                SELECT 
+                    c.cart_id,
+                    ci.cart_item_id,
+                    ci.variant_id,
+                    ci.quantity,
+                    ci.unit_price,
+                    ci.total_price,
 
-        return rows;
+                    -- Product info
+                    pe.entity_id AS product_id,
+                    pe.sku AS product_sku,
+                    pv.sku AS variant_sku,
+                    pv.price AS variant_price,
+                    
+                    pv_name.value AS name,
+                    pv_image.value AS image_path,
+                    pt_desc.value AS description,
+                    u.name AS seller_name,
+
+                    -- Stock info
+                    COALESCE(isi.quantity, 0) AS stock_quantity,
+
+                    -- Variant attributes (size, color,...)
+                    GROUP_CONCAT(DISTINCT CONCAT(po.name, ': ', pov.value) SEPARATOR ', ') AS variant_attributes
+                FROM cart c
+                JOIN cart_item ci 
+                    ON c.cart_id = ci.cart_id
+                JOIN product_variant pv 
+                    ON ci.variant_id = pv.variant_id
+                JOIN product_entity pe 
+                    ON pv.product_id = pe.entity_id
+
+                -- Join name
+                LEFT JOIN product_entity_varchar pv_name 
+                    ON pe.entity_id = pv_name.entity_id 
+                    AND pv_name.attribute_id = 1
+
+                -- Join image
+                LEFT JOIN product_entity_varchar pv_image 
+                    ON pe.entity_id = pv_image.entity_id 
+                    AND pv_image.attribute_id = 3
+
+                -- Join description
+                LEFT JOIN product_entity_text pt_desc 
+                    ON pe.entity_id = pt_desc.entity_id 
+                    AND pt_desc.attribute_id = 4
+
+                -- Join seller
+                LEFT JOIN product_entity_int pi_seller 
+                    ON pe.entity_id = pi_seller.entity_id 
+                    AND pi_seller.attribute_id = 6
+                LEFT JOIN user u 
+                    ON pi_seller.value = u.user_id
+
+                -- Join stock
+                LEFT JOIN inventory_stock_item isi 
+                    ON pv.variant_id = isi.variant_id
+
+                -- Join variant attributes
+                LEFT JOIN product_variant_option_value pvov 
+                    ON pv.variant_id = pvov.variant_id
+                LEFT JOIN product_option_value pov 
+                    ON pvov.value_id = pov.value_id
+                LEFT JOIN product_option po 
+                    ON pov.option_id = po.option_id
+
+                WHERE c.user_id = ? 
+                AND c.status = 'pending'
+                GROUP BY 
+                    c.cart_id, ci.cart_item_id, ci.variant_id, ci.quantity, ci.unit_price, ci.total_price,
+                    pe.entity_id, pe.sku, pv.sku, pv.price, pv_name.value, pv_image.value, pt_desc.value, u.name, isi.quantity
+            `, [userId]);
+
+            return rows;
+        } catch (err) {
+            throw err;
+        }
     }
 }
 
