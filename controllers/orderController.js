@@ -23,6 +23,7 @@ exports.getOrder = async (req, res) => {
     const { orderId } = req.params;
     try {
         const data = await order.getOrder(orderId);
+        console.log(data);
         res.json({
             success: true,
             data: data

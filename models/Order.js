@@ -2,6 +2,7 @@ const db = require('../config/database')
 
 class Order {
     static async placeOrder(cart_id, payment_method) {
+        console.log(cart_id);
         const connection = await db.getConnection();
         try {
             const [rows] = await db.query(`
@@ -44,7 +45,7 @@ class Order {
                 await connection.query(`
                     INSERT INTO order_item (order_id, variant_id, quantity, unit_price, total_price)
                     VALUES (?, ?, ?, ?, ?)
-                `, [order_id, item.variant_id, item.unit_price, item.total_price]
+                `, [order_id, item.variant_id, item.quantity, item.unit_price, item.total_price]
                 );
             }
             connection.commit();
@@ -63,7 +64,7 @@ class Order {
                 SELECT order_id, status, created_at, total_amount, payment_method
                 FROM \`order\`
                 WHERE order_id = ?
-            `, [order_id]
+            `, [11]
             )
             return rows;
         } catch (err) {
