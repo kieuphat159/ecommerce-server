@@ -1,7 +1,7 @@
+const database = require('../config/database');
 const db = require('../config/database');
 
 class ProductEAV {
-  // Helper method to get attribute ID by code
   static async getAttributeId(code) {
     const query = 'SELECT attribute_id FROM attribute WHERE code = ?';
     try {
@@ -13,7 +13,6 @@ class ProductEAV {
     }
   }
 
-  // Helper method to check if product belongs to clothes category
   static async isClothesProduct(entityId) {
     const query = `
       SELECT COUNT(*) as count 
@@ -32,8 +31,9 @@ class ProductEAV {
     }
   }
 
-  // Updated findAll method with size and color
-  static async findAll() {
+  static async findAll(page = 1, limit = 8) {
+    const offset = (page - 1) * limit;
+
     const query = `
       SELECT DISTINCT
         pe.entity_id,
@@ -50,10 +50,6 @@ class ProductEAV {
         pt_desc.value as description,
         -- Status
         pi_status.value as status,
-        -- Size (for clothes)
-        pv_size.value as size,
-        -- Color (for clothes)
-        pv_color.value as color,
         -- Categories
         GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') as categories
       FROM product_entity pe
@@ -87,16 +83,6 @@ class ProductEAV {
       LEFT JOIN product_entity_int pi_seller 
         ON pe.entity_id = pi_seller.entity_id 
         AND pi_seller.attribute_id = 6
-
-      -- Join size (varchar) - for clothes
-      LEFT JOIN product_entity_varchar pv_size 
-        ON pe.entity_id = pv_size.entity_id 
-        AND pv_size.attribute_id = (SELECT attribute_id FROM attribute WHERE code = 'size')
-
-      -- Join color (varchar) - for clothes
-      LEFT JOIN product_entity_varchar pv_color 
-        ON pe.entity_id = pv_color.entity_id 
-        AND pv_color.attribute_id = (SELECT attribute_id FROM attribute WHERE code = 'color')
         
       -- Join user table for seller name
       LEFT JOIN user u ON pi_seller.value = u.user_id
@@ -107,19 +93,37 @@ class ProductEAV {
       
       WHERE pi_status.value = 1
       GROUP BY pe.entity_id, pe.sku, u.name, u.user_id, pv_name.value, pd_price.value, 
-               pv_image.value, pt_desc.value, pi_status.value, pv_size.value, pv_color.value
+               pv_image.value, pt_desc.value, pi_status.value
       ORDER BY pe.entity_id DESC
+      LIMIT ${offset}, ${limit}
     `;
     
     try {
-      const [rows] = await db.execute(query);
-      return rows;
+      const [rows] = await db.execute(query, [limit, offset]);
+      const [countResult] = await db.execute(`
+        SELECT COUNT(DISTINCT pe.entity_id) as total
+        FROM product_entity pe
+        LEFT JOIN product_entity_int pi_status 
+        ON pe.entity_id = pi_status.entity_id AND pi_status.attribute_id = 5
+        WHERE pi_status.value = 1
+      `);
+
+      const totalItems = countResult[0].total;
+      const totalPages = Math.ceil(totalItems / limit)
+      return {
+        data: rows,
+        pagination: {
+          page, 
+          limit,
+          totalItems,
+          totalPages
+        }
+      };
     } catch (error) {
       throw error;
     }
   }
 
-  // Updated findById method with size and color
   static async findById(entityId) {
     const query = `
       SELECT 
@@ -269,7 +273,6 @@ class ProductEAV {
     }
   }
 
-  // Updated create method with size and color support
   static async create(productData) {
     const { sku, name, price, image_path, description, seller_id, status = 1, category, size, color } = productData;
     const connection = await db.getConnection();
@@ -286,7 +289,6 @@ class ProductEAV {
       
       const insertPromises = [];
       
-      // Standard attributes
       if (name) {
         insertPromises.push(
           connection.execute(
@@ -339,7 +341,6 @@ class ProductEAV {
         );
       }
 
-      // Check if this is a clothes product and add size/color
       const isClothes = category && (
         category.toLowerCase().includes('clothes') || 
         category.toLowerCase().includes('dress') || 
@@ -348,7 +349,6 @@ class ProductEAV {
       );
 
       if (isClothes) {
-        // Get size and color attribute IDs
         const sizeAttrId = await this.getAttributeId('size');
         const colorAttrId = await this.getAttributeId('color');
 
@@ -373,7 +373,6 @@ class ProductEAV {
       
       await Promise.all(insertPromises);
       
-      // Handle category assignment
       if (category && category !== '') {
         const [categoryRows] = await connection.execute(
           'SELECT category_id FROM category WHERE name = ? AND is_active = ?',
@@ -402,7 +401,6 @@ class ProductEAV {
     }
   }
 
-  // Updated update method with size and color support
   static async update(entityId, productData) {
     const { sku, name, price, image_path, description, seller_id, status, category, size, color } = productData;
     const connection = await db.getConnection();
@@ -419,7 +417,6 @@ class ProductEAV {
       
       const updatePromises = [];
       
-      // Standard attribute updates
       if (name !== undefined && name !== null) {
         updatePromises.push(
           connection.execute(
@@ -486,7 +483,6 @@ class ProductEAV {
         );
       }
 
-      // Handle size and color updates for clothes products
       const isClothes = await this.isClothesProduct(entityId) || (category && (
         category.toLowerCase().includes('clothes') || 
         category.toLowerCase().includes('dress') || 
@@ -523,7 +519,6 @@ class ProductEAV {
       
       await Promise.allSettled(updatePromises);
       
-      // Handle category update
       if (category !== undefined) {
         await connection.execute(
           'DELETE FROM category_product WHERE product_id = ?',
@@ -558,7 +553,6 @@ class ProductEAV {
     }
   }
 
-  // Soft delete method remains the same
   static async softDelete(entityId) {
     try {
       await db.execute(
