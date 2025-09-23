@@ -92,8 +92,7 @@ class ProductEAV {
       LEFT JOIN category c ON cp.category_id = c.category_id
       
       WHERE pi_status.value = 1
-      GROUP BY pe.entity_id, pe.sku, u.name, u.user_id, pv_name.value, pd_price.value, 
-               pv_image.value, pt_desc.value, pi_status.value
+      GROUP BY pe.entity_id
       ORDER BY pe.entity_id DESC
       LIMIT ${offset}, ${limit}
     `;

@@ -85,34 +85,63 @@ class ProductOption {
 
 
     static async getVariantIdByOptions(entityId, options) {
-    try {
-        const valueIds = Object.values(options).filter(v => v !== null);
+        try {
+            const valueIds = Object.values(options).filter(v => v !== null);
 
 
-        if (valueIds.length === 0) {
-            return null;
+            if (valueIds.length === 0) {
+                return null;
+            }
+
+            const placeholders = valueIds.map(() => '?').join(',');
+            const query = `
+                SELECT pv.variant_id
+                FROM product_variant pv
+                JOIN product_variant_option_value pvov ON pv.variant_id = pvov.variant_id
+                WHERE pv.product_id = ? 
+                AND pvov.value_id IN (${placeholders})
+                GROUP BY pv.variant_id
+                HAVING COUNT(DISTINCT pvov.value_id) = ?
+            `;
+
+            const [rows] = await db.execute(query, [entityId, ...valueIds, valueIds.length]);
+
+            return rows.length > 0 ? rows[0].variant_id : null;
+        } catch (err) {
+            throw err;
         }
-
-        const placeholders = valueIds.map(() => '?').join(',');
-        const query = `
-            SELECT pv.variant_id
-            FROM product_variant pv
-            JOIN product_variant_option_value pvov ON pv.variant_id = pvov.variant_id
-            WHERE pv.product_id = ? 
-              AND pvov.value_id IN (${placeholders})
-            GROUP BY pv.variant_id
-            HAVING COUNT(DISTINCT pvov.value_id) = ?
-        `;
-
-        const [rows] = await db.execute(query, [entityId, ...valueIds, valueIds.length]);
-
-        return rows.length > 0 ? rows[0].variant_id : null;
-    } catch (err) {
-        throw err;
     }
-}
 
-
+    static async getOptionsWithStock(productId) {
+        const query = `
+            SELECT 
+                po.option_id,
+                po.name AS option_name,
+                pov.value_id,
+                pov.value AS option_value,
+                COALESCE(SUM(isi.quantity), 0) AS total_quantity
+            FROM product_entity pe
+            JOIN product_variant pv 
+                ON pe.entity_id = pv.product_id
+            JOIN product_variant_option_value pvov 
+                ON pv.variant_id = pvov.variant_id
+            JOIN product_option_value pov 
+                ON pvov.value_id = pov.value_id
+            JOIN product_option po 
+                ON pov.option_id = po.option_id
+            LEFT JOIN inventory_stock_item isi 
+                ON pv.variant_id = isi.variant_id
+            WHERE pe.entity_id = ? 
+            GROUP BY po.option_id, po.name, pov.value_id, pov.value
+            ORDER BY po.option_id, pov.value_id;
+        `
+        try {
+            const [rows] = await db.query(query, [productId]);
+            return rows;
+        } catch (err) {
+            throw err;
+        }
+    }
 }
 
 module.exports = ProductOption;
