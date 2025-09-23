@@ -35,84 +35,52 @@ class ProductEAV {
     const offset = (page - 1) * limit;
 
     const query = `
-      SELECT DISTINCT
+      SELECT 
         pe.entity_id,
-        pe.sku,
-        u.name as seller_name,
-        u.user_id as seller_id,
-        -- Name
-        pv_name.value as name,
-        -- Price  
-        pd_price.value as price,
-        -- Image
-        pv_image.value as image_path,
-        -- Description
-        pt_desc.value as description,
-        -- Status
-        pi_status.value as status,
-        -- Categories
-        GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') as categories
+        pv_name.value AS name,
+        pd_price.value AS price,
+        pv_image.value AS image_path
       FROM product_entity pe
-      
-      -- Join name (varchar)
+      -- Name
       LEFT JOIN product_entity_varchar pv_name 
         ON pe.entity_id = pv_name.entity_id 
         AND pv_name.attribute_id = 1
-      
-      -- Join price (decimal)
+      -- Price
       LEFT JOIN product_entity_decimal pd_price 
         ON pe.entity_id = pd_price.entity_id 
         AND pd_price.attribute_id = 2
-        
-      -- Join image (varchar)
+      -- Image
       LEFT JOIN product_entity_varchar pv_image 
         ON pe.entity_id = pv_image.entity_id 
         AND pv_image.attribute_id = 3
-        
-      -- Join description (text)
-      LEFT JOIN product_entity_text pt_desc 
-        ON pe.entity_id = pt_desc.entity_id 
-        AND pt_desc.attribute_id = 4
-        
-      -- Join status (int)
+      -- Status
       LEFT JOIN product_entity_int pi_status 
         ON pe.entity_id = pi_status.entity_id 
         AND pi_status.attribute_id = 5
-        
-      -- Join seller (int)
-      LEFT JOIN product_entity_int pi_seller 
-        ON pe.entity_id = pi_seller.entity_id 
-        AND pi_seller.attribute_id = 6
-        
-      -- Join user table for seller name
-      LEFT JOIN user u ON pi_seller.value = u.user_id
-
-      -- Join categories
-      LEFT JOIN category_product cp ON pe.entity_id = cp.product_id
-      LEFT JOIN category c ON cp.category_id = c.category_id
-      
       WHERE pi_status.value = 1
-      GROUP BY pe.entity_id
       ORDER BY pe.entity_id DESC
-      LIMIT ${offset}, ${limit}
+      LIMIT ${Number(offset)}, ${Number(limit)}
     `;
-    
+
     try {
-      const [rows] = await db.execute(query, [limit, offset]);
+      const [rows] = await db.execute(query);
+
       const [countResult] = await db.execute(`
         SELECT COUNT(DISTINCT pe.entity_id) as total
         FROM product_entity pe
         LEFT JOIN product_entity_int pi_status 
-        ON pe.entity_id = pi_status.entity_id AND pi_status.attribute_id = 5
+          ON pe.entity_id = pi_status.entity_id 
+          AND pi_status.attribute_id = 5
         WHERE pi_status.value = 1
       `);
 
       const totalItems = countResult[0].total;
-      const totalPages = Math.ceil(totalItems / limit)
+      const totalPages = Math.ceil(totalItems / limit);
+
       return {
         data: rows,
         pagination: {
-          page, 
+          page,
           limit,
           totalItems,
           totalPages
@@ -122,6 +90,7 @@ class ProductEAV {
       throw error;
     }
   }
+
 
   static async findById(entityId) {
     const query = `
@@ -565,6 +534,85 @@ class ProductEAV {
       throw error;
     }
   }
+
+    static async findByCategory(category, page = 1, limit = 4) {
+    const offset = (page - 1) * limit;
+
+    const query = `
+      SELECT DISTINCT
+        pe.entity_id as id,
+        pe.sku,
+        u.name as seller_name,
+        u.user_id as seller_id,
+        -- Name
+        pv_name.value as name,
+        -- Price  
+        pd_price.value as price,
+        -- Image
+        pv_image.value as image,
+        -- Description
+        pt_desc.value as description,
+        -- Status
+        pi_status.value as status,
+        -- Categories
+        GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') as categories
+      FROM product_entity pe
+      
+      LEFT JOIN product_entity_varchar pv_name 
+        ON pe.entity_id = pv_name.entity_id AND pv_name.attribute_id = 1
+      LEFT JOIN product_entity_decimal pd_price 
+        ON pe.entity_id = pd_price.entity_id AND pd_price.attribute_id = 2
+      LEFT JOIN product_entity_varchar pv_image 
+        ON pe.entity_id = pv_image.entity_id AND pv_image.attribute_id = 3
+      LEFT JOIN product_entity_text pt_desc 
+        ON pe.entity_id = pt_desc.entity_id AND pt_desc.attribute_id = 4
+      LEFT JOIN product_entity_int pi_status 
+        ON pe.entity_id = pi_status.entity_id AND pi_status.attribute_id = 5
+      LEFT JOIN product_entity_int pi_seller 
+        ON pe.entity_id = pi_seller.entity_id AND pi_seller.attribute_id = 6
+      LEFT JOIN user u ON pi_seller.value = u.user_id
+      
+      LEFT JOIN category_product cp ON pe.entity_id = cp.product_id
+      LEFT JOIN category c ON cp.category_id = c.category_id
+      
+      WHERE pi_status.value = 1
+        AND c.name LIKE ?
+      GROUP BY pe.entity_id
+      ORDER BY pe.entity_id DESC
+      LIMIT ${offset}, ${limit}
+    `;
+
+    try {
+      const [rows] = await db.execute(query, [`%${category}%`]);
+
+      const [countResult] = await db.execute(`
+        SELECT COUNT(DISTINCT pe.entity_id) as total
+        FROM product_entity pe
+        LEFT JOIN product_entity_int pi_status 
+          ON pe.entity_id = pi_status.entity_id AND pi_status.attribute_id = 5
+        LEFT JOIN category_product cp ON pe.entity_id = cp.product_id
+        LEFT JOIN category c ON cp.category_id = c.category_id
+        WHERE pi_status.value = 1
+          AND c.name LIKE ?
+      `, [`%${category}%`]);
+
+      const totalItems = countResult[0].total;
+      const totalPages = Math.ceil(totalItems / limit);
+
+      return {
+        data: rows,
+        pagination: {
+          page,
+          limit,
+          totalItems,
+          totalPages
+        }
+      };
+    } catch (error) {
+      throw error;
+    }
+  }
+
 }
 
 module.exports = ProductEAV;
