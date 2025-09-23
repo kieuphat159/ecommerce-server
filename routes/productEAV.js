@@ -4,6 +4,11 @@ const productEAVController = require('../controllers/productEAVController');
 const upload = require('../middleware/multerMiddleware');
 const authMiddleware = require('../middleware/authMiddleware');
 
+const now = new Date();
+const seconds = now.getSeconds().toString().padStart(2, "0");
+const ms = now.getMilliseconds().toString().padStart(3, "0");
+console.log(`Respone: ${seconds}.${ms}`);
+
 router.get('/products', productEAVController.getAllProducts);
 
 router.get('/products/:category', productEAVController.getProductsByCategory);
