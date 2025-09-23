@@ -368,31 +368,23 @@ exports.deleteProduct = async (req, res) => {
 };
 
 // Additional method to get products by category
+
+
 exports.getProductsByCategory = async (req, res) => {
-    try {
-        const { category } = req.params;
-        const allProducts = await productEAV.findAll();
-        
-        const categoryProducts = allProducts
-            .filter(product => 
-                product.categories && 
-                product.categories.toLowerCase().includes(category.toLowerCase())
-            )
-            .map(product => formatProduct(product));
-        
-        res.json({
-            success: true,
-            data: categoryProducts,
-            count: categoryProducts.length,
-            category: category,
-            message: `Products in category '${category}' retrieved successfully`
-        });
-    } catch (error) {
-        console.error('Error fetching products by category:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error fetching products by category',
-            error: error.message
-        });
-    }
-}
+  try {
+    const { category } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 4;
+
+    const products = await productEAV.findByCategory(category, page, limit);
+
+    res.json({
+      success: true,
+      ...products
+    });
+
+  } catch (err) {
+    console.error('Error fetching products by category:', err);
+    res.status(500).json({ success: false, message: 'Error fetching products by category' });
+  }
+};
