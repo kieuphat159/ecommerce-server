@@ -38,8 +38,10 @@ exports.getOrder = async (req, res) => {
 
 exports.getAllOrders = async (req, res) => {
     const { userId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 5;
     try {
-        const orders = await order.getAllOrders(userId);
+        const orders = await order.getAllOrders(userId, page, limit);
         res.json({
             success: true,
             data: orders

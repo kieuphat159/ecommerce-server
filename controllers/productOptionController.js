@@ -1,31 +1,40 @@
 const ProductOption = require('../models/ProductOption');
 const productOption = require('../models/ProductOption')
 
-const formatOption = (option) => ({
-    id: option.option_id,
-    name: option.name
-});
+exports.getAllOptionsWithStock = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const rows = await productOption.getOptionsWithStock(id);
+    const optionsMap = {};
+    rows.forEach(row => {
+      if (!optionsMap[row.option_id]) {
+        optionsMap[row.option_id] = {
+          id: row.option_id,
+          name: row.option_name,
+          values: []
+        };
+      }
+      optionsMap[row.option_id].values.push({
+        id: row.value_id,
+        value: row.option_value,
+        quantity: parseInt(row.total_quantity, 10) || 0
+      });
+    });
 
+    res.json({
+      success: true,
+      data: Object.values(optionsMap)
+    });
+  } catch (err) {
+    console.log('Err: ', err);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching options with stock',
+      error: err.message
+    });
+  }
+};
 
-exports.getAllOption = async (req, res) => {
-    try {
-        const { id } = req.params;
-        const options = await productOption.getAllOption(id);
-        const formattedOptions = options[0].map(option => formatOption(option));
-
-        res.json({
-            success: true,
-            data: formattedOptions
-        })
-    } catch (err) {
-        console.log('Err: ', err);
-        res.status(500).json({
-            success: false,
-            message: 'Error fetching options',
-            error: err.message
-        })
-    }
-}
 
 exports.getValues = async (req, res) => {
     try {

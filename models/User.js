@@ -13,6 +13,14 @@ class User {
     return result.insertId;
   }
 
+  static async findByUserId(userId) {
+     const [rows] = await db.execute(
+      'SELECT * FROM user WHERE user_id = ?',
+      [userId]
+    );
+    return rows[0];
+  }
+
   static async findByEmail(email) {
     const [rows] = await db.execute(
       'SELECT * FROM user WHERE email = ?',

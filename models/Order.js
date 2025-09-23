@@ -72,18 +72,34 @@ class Order {
         }
     }
 
-    static async getAllOrders(user_id) {
+    static async getAllOrders(user_id, page = 1, limit = 5) {
         try {
+            const offset = (page - 1) * limit;
+            const [[{ total }]] = await db.query(
+                `SELECT COUNT(*) as total FROM \`order\` WHERE user_id = ?`,
+                [user_id]
+            );
+
             const [rows] = await db.query(`
-                SELECT * FROM \`order\`
-                WHERE user_id = ?   
+                SELECT *
+                FROM \`order\`
+                WHERE user_id = ?
+                ORDER BY created_at DESC
+                 LIMIT ${offset}, ${limit}
             `, [user_id]
-            )
-            return rows;
+            );
+
+            return {
+                orders: rows,
+                totalItems: total,
+                totalPages: Math.ceil(total / limit),
+                currentPage: page
+            };
         } catch (err) {
             throw err;
         }
     }
+
 }
 
 module.exports = Order;

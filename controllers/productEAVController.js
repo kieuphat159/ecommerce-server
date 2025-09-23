@@ -1,7 +1,6 @@
 const ProductEAV = require('../models/ProductEAV');
 const productEAV = require('../models/ProductEAV');
 
-// Helper function to check if product is clothes
 const isClothesCategory = (categories) => {
   if (!categories) return false;
   const clothesKeywords = ['clothes', 'dress', 'shirt', 'jeans', 't-shirt', 'dresses', 't-shirts'];
@@ -10,7 +9,6 @@ const isClothesCategory = (categories) => {
   );
 };
 
-// Helper function to format product with conditional size/color
 const formatProduct = (product) => {
   const baseProduct = {
     id: product.entity_id,
@@ -24,25 +22,20 @@ const formatProduct = (product) => {
     status: product.status,
     categories: product.categories
   };
-
-  // Add size and color only if product is clothes
-  if (isClothesCategory(product.categories)) {
-    if (product.size) baseProduct.size = product.size;
-    if (product.color) baseProduct.color = product.color;
-  }
-
   return baseProduct;
 };
 
 exports.getAllProducts = async (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 4;
     try {
-        const products = await productEAV.findAll();
-        const formattedProducts = products.map(product => formatProduct(product));
+        const result = await productEAV.findAll(page, limit);
+        const formattedProducts = result.data.map(product => formatProduct(product));
         
         res.json({
             success: true,
             data: formattedProducts,
-            count: formattedProducts.length
+            pagination: result.pagination
         });
     } catch (error) {
         console.log('Error: ', error);
@@ -86,7 +79,6 @@ exports.getProductsBySellerId = async (req, res) => {
     try {
         const { id: sellerId } = req.params;
         
-        // Validate sellerId
         if (!sellerId || isNaN(parseInt(sellerId))) {
             return res.status(400).json({
                 success: false,
@@ -143,7 +135,7 @@ exports.createProduct = async (req, res) => {
             color
         } = req.body;
 
-        // Validation
+        
         if (!name || name.trim() === '') {
             return res.status(400).json({
                 success: false,
@@ -165,7 +157,6 @@ exports.createProduct = async (req, res) => {
             });
         }
 
-        // Check if this is a clothes product and validate size/color
         const isClothes = category && (
             category.toLowerCase().includes('clothes') || 
             category.toLowerCase().includes('dress') || 
@@ -200,7 +191,6 @@ exports.createProduct = async (req, res) => {
             seller_id: parseInt(sellerId)
         };
 
-        // Add size and color for clothes products
         if (isClothes) {
             productData.size = size;
             productData.color = color;
@@ -208,7 +198,6 @@ exports.createProduct = async (req, res) => {
 
         const entityId = await ProductEAV.create(productData);
         
-        // Format response data
         const responseData = { ...productData, id: entityId };
         
         res.status(201).json({
@@ -246,7 +235,6 @@ exports.updateProduct = async (req, res) => {
             color
         } = req.body;        
 
-        // Validation
         if (!id || isNaN(parseInt(id))) {
             return res.status(400).json({
                 success: false,
@@ -283,7 +271,6 @@ exports.updateProduct = async (req, res) => {
             });
         }
 
-        // Check if this is a clothes product
         const isClothes = category && (
             category.toLowerCase().includes('clothes') || 
             category.toLowerCase().includes('dress') || 
@@ -291,7 +278,6 @@ exports.updateProduct = async (req, res) => {
             category.toLowerCase().includes('jeans')
         ) || isClothesCategory(existingProduct.categories);
 
-        // Validate size and color for clothes products
         if (isClothes) {
             if (size !== undefined && (!size || size.trim() === '')) {
                 return res.status(400).json({
@@ -319,7 +305,6 @@ exports.updateProduct = async (req, res) => {
             seller_id: parseInt(sellerId)
         };
 
-        // Add size and color for clothes products
         if (isClothes) {
             if (size !== undefined) productData.size = size;
             if (color !== undefined) productData.color = color;
@@ -328,7 +313,6 @@ exports.updateProduct = async (req, res) => {
         const result = await ProductEAV.update(id, productData);
         
         if (result) {
-            // Get updated product to return formatted response
             const updatedProduct = await ProductEAV.findById(id);
             const formattedProduct = formatProduct(updatedProduct);
             
