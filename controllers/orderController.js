@@ -2,20 +2,35 @@ const order = require('../models/Order');
 
 exports.placeOrder = async (req, res) => {
     const { cartId } = req.params;
-    const { paymentMethod } = req.body;
+    const { 
+        paymentMethod, 
+        firstName, 
+        lastName, 
+        phoneNumber, 
+        emailAddress 
+    } = req.body;
+
     try {
-        const orderId = await order.placeOrder(cartId, paymentMethod);
+        const orderId = await order.placeOrder(
+            cartId, 
+            paymentMethod, 
+            firstName, 
+            lastName, 
+            phoneNumber, 
+            emailAddress
+        );
+
         res.json({
             success: true,
             message: 'Order completed',
             orderId: orderId
-        })
+        });
     } catch (err) {
+        console.error("Order error:", err);
         res.status(500).json({
             success: false,
             message: 'Error completing order'
-        })
-        throw err;
+        });
     }
 }
 
