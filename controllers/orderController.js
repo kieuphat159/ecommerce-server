@@ -2,20 +2,35 @@ const order = require('../models/Order');
 
 exports.placeOrder = async (req, res) => {
     const { cartId } = req.params;
-    const { paymentMethod } = req.body;
+    const { 
+        paymentMethod, 
+        firstName, 
+        lastName, 
+        phoneNumber, 
+        emailAddress 
+    } = req.body;
+
     try {
-        const orderId = await order.placeOrder(cartId, paymentMethod);
+        const orderId = await order.placeOrder(
+            cartId, 
+            paymentMethod, 
+            firstName, 
+            lastName, 
+            phoneNumber, 
+            emailAddress
+        );
+
         res.json({
             success: true,
             message: 'Order completed',
             orderId: orderId
-        })
+        });
     } catch (err) {
+        console.error("Order error:", err);
         res.status(500).json({
             success: false,
             message: 'Error completing order'
-        })
-        throw err;
+        });
     }
 }
 
@@ -51,5 +66,54 @@ exports.getAllOrders = async (req, res) => {
             success: false,
             message: 'Error getting order'
         })
+    }
+}
+
+exports.getAllOrdersExist = async (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 5;
+    try {
+        const orders = await order.getAllOrdersExist(page, limit);
+        res.json({
+            success: true,
+            data: orders
+        })
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: 'Error getting order'
+        })
+    }
+}
+
+exports.deleteOrder = async (req, res) => {
+    const { orderId } = req.params;
+    try {
+        await order.deleteOrder(orderId);
+        res.json({
+            success: true,
+            message: 'Delete order successful'
+        })
+    } catch (err) {
+        throw err;
+    }
+}
+
+exports.getOrderItem = async (req, res) => {
+    console.log('okok');
+    try {
+        const { orderId } = req.params;
+        const orderData = await order.getOrderItem(orderId);
+        res.json({
+            success: true,
+            data: orderData
+        })
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: 'Error getting order item',
+            error: err.message
+        })
+        throw err;
     }
 }

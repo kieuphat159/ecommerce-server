@@ -1,5 +1,11 @@
 const ProductOption = require('../models/ProductOption');
-const productOption = require('../models/ProductOption')
+const productOption = require('../models/ProductOption');
+
+const formatOption = (option) => ({
+    id: option.option_id,
+    name: option.name
+});
+
 
 exports.getAllOptionsWithStock = async (req, res) => {
   try {
@@ -100,9 +106,29 @@ exports.getVariantIdByOptions = async (req, res) => {
     if (!product_id) {
       return res.status(400).json({ success: false, message: 'Missing product_id' });
     }
-    const variantId = await ProductOption.getVariantIdByOptions(product_id, options);
+    const variantId = await ProductOption.getVariantIdByOptions(product_id, options); 
     res.json({ success: true, variantId });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error getting variantId', error: err.message });
   }
 };
+
+exports.getAllOption = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const options = await productOption.getAllOption(id);
+        const formattedOptions = options[0].map(option => formatOption(option));
+
+        res.json({
+            success: true,
+            data: formattedOptions
+        })
+    } catch (err) {
+        console.log('Err: ', err);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching options',
+            error: err.message
+        })
+    }
+}

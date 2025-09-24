@@ -2,25 +2,6 @@ const db = require('../config/database');
 const ProductOption = require('../models/ProductOption')
 
 class Stock {
-    static async getVariantIdByOptions(entityId, options) {
-        const query = `
-            SELECT pv.variant_id
-            FROM product_variant pv
-            JOIN product_variant_option_value pvov ON pv.variant_id = pvov.variant_id
-            JOIN product_option_value pov ON pvov.value_id = pov.value_id
-            JOIN product_option po ON pov.option_id = po.option_id
-            WHERE pv.product_id = ? AND pov.value IN (?, ?)
-            GROUP BY pv.variant_id
-            HAVING COUNT(DISTINCT po.code) = 2
-        `;
-        try {
-            const [rows] = await db.execute(query, [entityId, options.size, options.color]);
-            return rows.length > 0 ? rows[0].variant_id : null;
-        } catch (err) {
-            throw err;
-        }
-    }
-
     static async getAllStocks() {
         const query = `
             SELECT stock_id, stock_name
