@@ -51,27 +51,14 @@ class Cart {
 
             await conn.beginTransaction();
 
-            const [rows] = await conn.query(`
-                SELECT cart_item_id, quantity
-                FROM cart_item
-                WHERE cart_id = ? AND variant_id = ?
-            `, [cart_id, variantId]);
+            await conn.query(`
+                INSERT INTO cart_item(cart_id, variant_id, unit_price, total_price, quantity)
+                VALUES(?, ?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE 
+                    quantity = quantity + VALUES(quantity),
+                    total_price = unit_price * quantity
+            `, [cart_id, variantId, unit_price, total_price, quantity]);
 
-            if (rows.length > 0) {
-                const newQuantity = quantity + rows[0].quantity;
-                await conn.query(`
-                    UPDATE cart_item 
-                    SET quantity = ?, total_price = ?
-                    WHERE cart_item_id = ?
-                `, [newQuantity, check[0].price * newQuantity, rows[0].cart_item_id]);
-            } else {
-                await conn.query(`
-                    INSERT INTO cart_item(cart_id, variant_id, unit_price, total_price, quantity)
-                    VALUES(?, ?, ?, ?, ?)
-                `, [cart_id, variantId, unit_price, total_price, quantity]);
-            }
-
-            // update cart's total_amount
             await conn.query(`
                 UPDATE cart
                 SET total_amount = total_amount + ?

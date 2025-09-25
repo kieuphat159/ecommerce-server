@@ -166,7 +166,7 @@ class ProductOption {
 
     static async getDefaultQuantity(entityId) {
         const query = `
-            SELECT isi.quantity
+            SELECT isi.quantity, pv.variant_id
             FROM product_variant pv
             JOIN inventory_stock_item isi ON pv.variant_id = isi.variant_id
             WHERE pv.product_id = ?

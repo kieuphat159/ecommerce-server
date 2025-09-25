@@ -53,7 +53,31 @@ class Order {
                     INSERT INTO order_item (order_id, variant_id, quantity, unit_price, total_price)
                     VALUES (?, ?, ?, ?, ?)
                 `, [order_id, item.variant_id, item.quantity, item.unit_price, item.total_price]);
+
+                const stock_id = 1;
+
+                const [stockRows] = await connection.query(`
+                    SELECT quantity 
+                    FROM inventory_stock_item
+                    WHERE variant_id = ? AND stock_id = ?
+                    FOR UPDATE
+                `, [item.variant_id, stock_id]);
+
+                if (stockRows.length === 0) {
+                    throw new Error('No stock record found for variant ' + item.variant_id);
+                }
+
+                if (stockRows[0].quantity < item.quantity) {
+                    throw new Error('Not enough stock for variant ' + item.variant_id);
+                }
+
+                await connection.query(`
+                    UPDATE inventory_stock_item
+                    SET quantity = quantity - ?
+                    WHERE variant_id = ? AND stock_id = ?
+                `, [item.quantity, item.variant_id, stock_id]);
             }
+
 
             await connection.commit();
             return order_id;
