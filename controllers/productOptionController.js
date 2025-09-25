@@ -132,3 +132,25 @@ exports.getAllOption = async (req, res) => {
         })
     }
 }
+
+exports.getDefaultQuantity = async (req, res) => {
+    try {
+        const { entityId } = req.params;
+        const response = await productOption.getDefaultQuantity(entityId);
+        res.json({ success: true, data: response });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Error fetching default quantity', error: err.message });
+        throw err;
+    }
+}
+
+exports.getVariantDetails = async (req, res) => {
+    try {
+        const { variantId } = req.params;
+        const response = await productOption.getVariantDetails(variantId);
+        res.json({ success: true, data: response });
+    } catch (err) {
+        res.status(500).json({ success: false, message: 'Error fetching variant details', error: err.message });
+        throw err;
+    }
+  }

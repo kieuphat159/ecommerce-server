@@ -240,7 +240,7 @@ class Order {
 
     static async setStatus(orderId, status) {
         status = status.toLowerCase();
-        if (!['pending', 'completed','canceled'].includes(status)) {
+        if (!['pending', 'completed','cancelled'].includes(status)) {
             throw new Error('Invalid status value');
         }
         try {
@@ -249,7 +249,6 @@ class Order {
                 SET status = ?
                 WHERE order_id = ?
             `, [status, orderId]);
-            console.log('Update status successful');
         } catch (err) {
             throw err;
         }
