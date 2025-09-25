@@ -117,3 +117,21 @@ exports.getOrderItem = async (req, res) => {
         throw err;
     }
 }
+
+exports.setStatus = async (req, res) => {
+    const { orderId } = req.params;
+    const { status } = req.body;
+    try {
+        await order.setStatus(orderId, status);
+        res.json({
+            success: true,
+            message: 'Order status updated'
+        })
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: 'Error updating order status'
+        })
+        throw err;
+    }
+}

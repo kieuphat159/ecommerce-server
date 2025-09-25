@@ -10,7 +10,10 @@ router.get('/user/order-item/:orderId', authenticateToken, requireCustomerRole, 
 router.get('/user/my-orders/:userId', authenticateToken, requireCustomerRole, orderController.getAllOrders);
 router.delete('/user/order/:orderId', authenticateToken, requireCustomerRole, orderController.deleteOrder);
 
+router.get('/seller/order-item/:orderId', authenticateToken, requireSellerRole, orderController.getOrderItem)
+router.get('/seller/order/:orderId', authenticateToken, requireSellerRole, orderController.getOrder);
 router.delete('/seller/orders/:orderId', authenticateToken, requireSellerRole, orderController.deleteOrder);
-router.get('/seller/orders', orderController.getAllOrdersExist);
+router.get('/seller/orders', authenticateToken, requireSellerRole, orderController.getAllOrdersExist);
+router.put('/seller/order/status/:orderId', authenticateToken, requireSellerRole, orderController.setStatus);
 
 module.exports = router;
