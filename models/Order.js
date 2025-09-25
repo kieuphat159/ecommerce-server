@@ -69,7 +69,7 @@ class Order {
     static async getOrder(order_id) {
         try {
             const [rows] = await db.query(`
-                SELECT order_id, status, created_at, total_amount, payment_method
+                SELECT *
                 FROM \`order\`
                 WHERE order_id = ?
             `, [order_id]
@@ -238,7 +238,21 @@ class Order {
         }
     }
 
-
+    static async setStatus(orderId, status) {
+        status = status.toLowerCase();
+        if (!['pending', 'completed','canceled'].includes(status)) {
+            throw new Error('Invalid status value');
+        }
+        try {
+            await db.query(`
+                UPDATE \`order\`
+                SET status = ?
+                WHERE order_id = ?
+            `, [status, orderId]);
+            console.log('Update status successful');
+        } catch (err) {
+            throw err;
+        }
+    }
 }
-
 module.exports = Order;
