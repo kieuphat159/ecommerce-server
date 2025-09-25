@@ -94,7 +94,6 @@ class ProductOption {
     }
 
 
-
     static async getVariantIdByOptions(entityId, options) {
         try {
             const valueIds = Object.values(options).filter(v => v !== null).map(Number);
@@ -160,6 +159,34 @@ class ProductOption {
         try {
             const rows = await db.execute(query, [entityId]);
             return rows;
+        } catch (err) {
+            throw err;
+        }
+    }
+
+    static async getDefaultQuantity(entityId) {
+        const query = `
+            SELECT isi.quantity
+            FROM product_variant pv
+            JOIN inventory_stock_item isi ON pv.variant_id = isi.variant_id
+            WHERE pv.product_id = ?
+        `;  
+        try {
+            const [rows] = await db.execute(query, [entityId]);
+            //console.log(rows);
+            return rows[0];
+        } catch (err) {
+            throw err;
+        }
+    }
+
+    static async getVariantDetails(variantId) {
+        const query = `
+            SELECT * FROM product_variant WHERE variant_id = ?
+        `;
+        try {
+            const [rows] = await db.execute(query, [variantId]);
+            return rows[0];
         } catch (err) {
             throw err;
         }
