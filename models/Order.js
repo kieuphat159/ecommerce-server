@@ -91,6 +91,7 @@ class Order {
 
 
     static async getOrder(order_id) {
+        console.log(order_id);
         try {
             const [rows] = await db.query(`
                 SELECT *
@@ -159,19 +160,40 @@ class Order {
     }
 
     static async deleteOrder(orderId) {
+        const [status] = await db.query(
+            "SELECT status FROM `order` WHERE order_id = ?",
+            [orderId]
+        );
+        if (status.length === 0) {
+            throw new Error('Order not found');
+        }
+        if (status[0].status !== 'pending') {
+            throw new Error('Only pending orders can be cancelled');
+        }
         const connection = await db.getConnection();
         await connection.beginTransaction();
         try {
             const item = `
-                DELETE FROM order_item
+                SELECT oi.order_item_id, oi.variant_id, oi.quantity
+                FROM order_item oi
+                WHERE oi.order_id = ?
+            `;
+            const [orderItems] = await connection.query(item, [orderId]);
+            for (let orderItem of orderItems) {
+                const updateStock = `
+                    UPDATE inventory_stock_item
+                    SET quantity = quantity + ?
+                    WHERE variant_id = ? AND stock_id = 1
+                `;
+                await connection.query(updateStock, [orderItem.quantity, orderItem.variant_id]);
+            }
+            const deleteOrderItems = `
+                UPDATE \`order\`
+                SET status = 'cancelled'
                 WHERE order_id = ?
-            `
-            await connection.query(item, [orderId]);
-            const query = `
-                DELETE FROM \`order\`
-                WHERE order_id = ?
-            `
-            await connection.query(query, [orderId]);
+            `;
+            await connection.query(deleteOrderItems, [orderId]);
+
             await connection.commit();
         } catch (err) {
             await connection.rollback();
@@ -266,6 +288,16 @@ class Order {
         status = status.toLowerCase();
         if (!['pending', 'completed','cancelled'].includes(status)) {
             throw new Error('Invalid status value');
+        }
+        const [existing] = await db.query(
+            "SELECT status FROM `order` WHERE order_id = ?",
+            [orderId]
+        );
+        if (existing.length === 0) {
+            throw new Error('Order not found');
+        }
+        if (existing[0].status !== 'pending') {
+            throw new Error('Only pending orders can be updated');
         }
         try {
             await db.query(`

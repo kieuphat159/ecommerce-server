@@ -92,7 +92,7 @@ exports.deleteOrder = async (req, res) => {
         await order.deleteOrder(orderId);
         res.json({
             success: true,
-            message: 'Delete order successful'
+            message: 'Cancel order successful'
         })
     } catch (err) {
         throw err;
