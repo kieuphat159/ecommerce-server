@@ -29,7 +29,6 @@ class Cart {
                 cart_id = result.insertId;
             }
 
-            // kiểm tra giá
             const [check] = await conn.query(`
                 SELECT price
                 FROM product_variant
