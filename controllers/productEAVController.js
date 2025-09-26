@@ -1,5 +1,4 @@
 const ProductEAV = require('../models/ProductEAV');
-const productEAV = require('../models/ProductEAV');
 
 const isClothesCategory = (categories) => {
   if (!categories) return false;
@@ -28,8 +27,9 @@ const formatProduct = (product) => {
 exports.getAllProducts = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 4;
+    const call = new Date();
     try {
-        const result = await productEAV.findAll(page, limit);
+        const result = await ProductEAV.findAll(page, limit);
         const formattedProducts = result.data.map(product => formatProduct(product));
         
         res.json({
@@ -44,13 +44,17 @@ exports.getAllProducts = async (req, res) => {
             message: 'Error fetching products',
             error: error.message
         });
+    } finally {
+        const response = new Date();
+        const timeDiff = response - call;
+        console.log(`Get all products response time: ${timeDiff} ms`);
     }
 };
 
 exports.getProductById = async (req, res) => {
     try {
         const { id } = req.params;
-        const product = await productEAV.findById(id);
+        const product = await ProductEAV.findById(id);
         
         if (!product) {
             return res.status(404).json({
@@ -86,7 +90,7 @@ exports.getProductsBySellerId = async (req, res) => {
             });
         }
         
-        const products = await productEAV.findBySellerId(parseInt(sellerId));
+        const products = await ProductEAV.findBySellerId(parseInt(sellerId));
         
         if (!products || products.length === 0) {
             return res.status(404).json({
@@ -135,7 +139,6 @@ exports.createProduct = async (req, res) => {
             color
         } = req.body;
 
-        
         if (!name || name.trim() === '') {
             return res.status(400).json({
                 success: false,
@@ -346,7 +349,7 @@ exports.deleteProduct = async (req, res) => {
             });
         }
         
-        const result = await productEAV.softDelete(parseInt(id));
+        const result = await ProductEAV.softDelete(parseInt(id));
         
         if (result) {
             res.json({
@@ -367,16 +370,14 @@ exports.deleteProduct = async (req, res) => {
     }
 };
 
-// Additional method to get products by category
-
-
 exports.getProductsByCategory = async (req, res) => {
+    console.log(req.params);
   try {
     const { category } = req.params;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 4;
 
-    const products = await productEAV.findByCategory(category, page, limit);
+    const products = await ProductEAV.findByCategory(category, page, limit);
 
     res.json({
       success: true,
