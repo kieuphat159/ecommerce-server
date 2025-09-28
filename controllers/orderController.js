@@ -1,4 +1,5 @@
 const order = require('../models/Order');
+const mailer = require('../services/mailer')
 
 exports.placeOrder = async (req, res) => {
     const { cartId } = req.params;
@@ -20,6 +21,20 @@ exports.placeOrder = async (req, res) => {
             emailAddress
         );
 
+        await mailer.sendMail(
+            emailAddress,
+            "Order confirmation",
+            `
+                <h2>Dear ${firstName} ${lastName},</h2>
+                <p>Thank you for placing order at <b>3legant</b>.</p>
+                <p>Your order id: <b>${orderId}</b></p>
+                <p>Payment method: ${paymentMethod}</p>
+                <p>We'll contact to ${phoneNumber} when the order is processing.</p>
+                <br/>
+                <p>Best regrads,</p>
+                <p>3legant</p>
+            `
+        );
         res.json({
             success: true,
             message: 'Order completed',
