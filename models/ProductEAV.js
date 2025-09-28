@@ -39,7 +39,8 @@ class ProductEAV {
         pe.entity_id,
         pv_name.value AS name,
         pd_price.value AS price,
-        pv_image.value AS image_path
+        pv_image.value AS image_path,
+        COALESCE(SUM(isi.quantity), 0) AS total_quantity
       FROM product_entity pe
       -- Name
       LEFT JOIN product_entity_varchar pv_name 
@@ -57,8 +58,14 @@ class ProductEAV {
       LEFT JOIN product_entity_int pi_status 
         ON pe.entity_id = pi_status.entity_id 
         AND pi_status.attribute_id = 5
+      -- Variant + Stock
+      LEFT JOIN product_variant pv ON pe.entity_id = pv.product_id
+      LEFT JOIN inventory_stock_item isi ON pv.variant_id = isi.variant_id
       WHERE pi_status.value = 1
-      ORDER BY pe.entity_id DESC
+      GROUP BY pe.entity_id, pv_name.value, pd_price.value, pv_image.value
+      ORDER BY 
+        CASE WHEN COALESCE(SUM(isi.quantity), 0) < 10 THEN 1 ELSE 0 END ASC,
+        pe.entity_id DESC
       LIMIT ${Number(offset)}, ${Number(limit)}
     `;
 
@@ -92,6 +99,7 @@ class ProductEAV {
   }
 
 
+
   static async findById(entityId) {
     const query = `
       SELECT 
@@ -110,18 +118,24 @@ class ProductEAV {
         pv_color.value as color,
         -- Categories
         GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') as categories
-      FROM product_entity pe
-      
-      LEFT JOIN product_entity_varchar pv_name 
+
+      FROM product_entity pe   
+
+      JOIN product_entity_varchar pv_name 
         ON pe.entity_id = pv_name.entity_id AND pv_name.attribute_id = 1
-      LEFT JOIN product_entity_decimal pd_price 
+
+      JOIN product_entity_decimal pd_price 
         ON pe.entity_id = pd_price.entity_id AND pd_price.attribute_id = 2
+
       LEFT JOIN product_entity_varchar pv_image 
         ON pe.entity_id = pv_image.entity_id AND pv_image.attribute_id = 3
+
       LEFT JOIN product_entity_text pt_desc 
         ON pe.entity_id = pt_desc.entity_id AND pt_desc.attribute_id = 4
+
       LEFT JOIN product_entity_int pi_status 
         ON pe.entity_id = pi_status.entity_id AND pi_status.attribute_id = 5
+
       LEFT JOIN product_entity_int pi_seller 
         ON pe.entity_id = pi_seller.entity_id AND pi_seller.attribute_id = 6
 
