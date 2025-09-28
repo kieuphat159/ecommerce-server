@@ -8,6 +8,8 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
   waitForConnections: true,
   connectionLimit: 10,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0,
   ssl: {
     ca: process.env.DB_CA ? process.env.DB_CA.replace(/\\n/g, '\n') : undefined,
     rejectUnauthorized: true

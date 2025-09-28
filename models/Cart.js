@@ -190,6 +190,24 @@ class Cart {
             connection.release();
         }
     }
+
+    static async getCartQuantity(userId) {
+        let cart_id = await Cart.checkExistCart(userId);
+        if (cart_id === -1) {
+            return 0;
+        }
+        const query = `
+            SELECT COALESCE(SUM(quantity), 0) AS total_quantity
+            FROM cart_item
+            WHERE cart_id = ?
+        `
+        try {
+            const [rows] = await db.query(query, [cart_id]);
+            return rows[0].total_quantity;
+        } catch (err) {
+            throw err;
+        }
+    }
 }
 
 module.exports = Cart;

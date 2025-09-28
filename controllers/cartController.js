@@ -52,6 +52,23 @@ exports.removeCartItem = async (req, res) => {
             message: 'Remove item successful'
         });
     } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: err
+        })
         console.log('Err: ', err);
+    }
+}
+
+exports.getCartQuantity = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const data = await cart.getCartQuantity(userId);
+        res.json({
+            success: true,
+            data: data
+        })
+    } catch(err) {
+        throw err;
     }
 }
