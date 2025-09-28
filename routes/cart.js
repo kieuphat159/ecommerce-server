@@ -6,5 +6,6 @@ const { authenticateToken, requireCustomerRole } = require('../middleware/authMi
 router.get('/user/cart/:userId', authenticateToken, requireCustomerRole, cartController.getCartItem)
 router.post('/user/add-to-cart/:userId', authenticateToken, requireCustomerRole, cartController.addToCart)
 router.delete('/user/delete-cart-item/:cartItemId', authenticateToken, requireCustomerRole,cartController.removeCartItem)
+router.get('/user/get-cart-quantity/:userId', authenticateToken, requireCustomerRole, cartController.getCartQuantity)
 
 module.exports = router;

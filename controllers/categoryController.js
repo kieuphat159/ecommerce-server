@@ -10,6 +10,7 @@ const formatCategory = (category) => {
 }
 
 exports.getAllCategory = async (req, res) => {
+    const call = new Date();
     try {
         const categories = await category.findAll();
         const formattedCategories = categories.map(category => formatCategory(category));
@@ -25,5 +26,8 @@ exports.getAllCategory = async (req, res) => {
             message: 'Error fetching categories',
             error: err.message
         })
+    } finally {
+        const response = new Date();
+        console.log(`getAllCategory executed in ${response - call} ms`);
     }
 }
