@@ -592,12 +592,11 @@ class ProductEAV {
         AND c.name LIKE ?
       GROUP BY pe.entity_id
       ORDER BY pe.entity_id DESC
-      LIMIT ? OFFSET ?
+      LIMIT ${offset}, ${limit}
     `;
 
     try {
-      // QUAN TRỌNG: Truyền đúng params!
-      const [rows] = await db.execute(query, [`%${category}%`, Number(limit), Number(offset)]);
+      const [rows] = await db.execute(query, [`%${category}%`]);
 
       const [countResult] = await db.execute(`
         SELECT COUNT(DISTINCT pe.entity_id) as total
@@ -616,18 +615,16 @@ class ProductEAV {
       return {
         data: rows,
         pagination: {
-          page: Number(page),
-          limit: Number(limit),
+          page,
+          limit,
           totalItems,
           totalPages
         }
       };
     } catch (error) {
-      console.error('Error in findByCategory:', error);
       throw error;
     }
   }
-
 }
 
 module.exports = ProductEAV;
