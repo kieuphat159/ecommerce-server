@@ -374,23 +374,3 @@ exports.deleteProduct = async (req, res) => {
         });
     }
 };
-
-exports.getProductsByCategory = async (req, res) => {
-    console.log(req.params);
-  try {
-    const { category } = req.params;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 4;
-
-    const products = await ProductEAV.findByCategory(category, page, limit);
-
-    res.json({
-      success: true,
-      ...products
-    });
-
-  } catch (err) {
-    console.error('Error fetching products by category:', err);
-    res.status(500).json({ success: false, message: 'Error fetching products by category' });
-  }
-};
