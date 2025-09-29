@@ -4,9 +4,7 @@ const productEAVController = require('../controllers/productEAVController');
 const upload = require('../middleware/multerMiddleware');
 const authMiddleware = require('../middleware/authMiddleware');
 
-router.get('/products', productEAVController.getAllProducts);
-
-router.get('/products/:category', productEAVController.getProductsByCategory);
+router.get('/products', productEAVController.getProducts);
 
 router.get('/seller/product/:id',
   productEAVController.getProductById

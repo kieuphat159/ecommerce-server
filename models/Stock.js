@@ -121,6 +121,29 @@ class Stock {
             throw err;
         }
     }
+
+    static async getTotalProductQuantity(productId) {
+        const query = `
+            SELECT 
+                pe.entity_id AS product_id,
+                pe.sku AS product_sku,
+                COALESCE(SUM(isi.quantity), 0) AS total_quantity
+            FROM product_entity pe
+            JOIN product_variant pv 
+                ON pe.entity_id = pv.product_id
+            LEFT JOIN inventory_stock_item isi 
+                ON pv.variant_id = isi.variant_id
+            WHERE pe.entity_id = ?
+            GROUP BY pe.entity_id, pe.sku
+        `;
+        try {
+            const [rows] = await db.execute(query, [productId]);
+            return rows.length > 0 ? rows[0] : { product_id: productId, total_quantity: 0 };
+        } catch (err) {
+            throw err;
+        }
+    }
+
 }
 
 module.exports = Stock;

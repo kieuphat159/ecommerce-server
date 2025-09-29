@@ -19,37 +19,42 @@ const formatProduct = (product) => {
     seller_name: product.seller_name,
     sku: product.sku,
     status: product.status,
-    categories: product.categories
+    categories: product.categories,
+    quantity: product.total_quantity
   };
   return baseProduct;
 };
 
-exports.getAllProducts = async (req, res) => {
+exports.getProducts = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 4;
-    const call = new Date();
+    const limit = parseInt(req.query.limit) || 8;
+    const category = req.query.category?.trim() || null;
     try {
-        const result = await ProductEAV.findAll(page, limit);
+        let result;
+
+        if (category) {
+            result = await ProductEAV.findByCategory(category, page, limit);
+        } else {
+            result = await ProductEAV.findAll(page, limit);
+        }
+
         const formattedProducts = result.data.map(product => formatProduct(product));
-        
+
         res.json({
             success: true,
             data: formattedProducts,
             pagination: result.pagination
         });
     } catch (error) {
-        console.log('Error: ', error);
+        console.error('Error in getProducts:', error);
         res.status(500).json({
             success: false,
             message: 'Error fetching products',
             error: error.message
         });
-    } finally {
-        const response = new Date();
-        const timeDiff = response - call;
-        console.log(`Get all products response time: ${timeDiff} ms`);
     }
 };
+
 
 exports.getProductById = async (req, res) => {
     try {
@@ -368,24 +373,4 @@ exports.deleteProduct = async (req, res) => {
             error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
         });
     }
-};
-
-exports.getProductsByCategory = async (req, res) => {
-    console.log(req.params);
-  try {
-    const { category } = req.params;
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 4;
-
-    const products = await ProductEAV.findByCategory(category, page, limit);
-
-    res.json({
-      success: true,
-      ...products
-    });
-
-  } catch (err) {
-    console.error('Error fetching products by category:', err);
-    res.status(500).json({ success: false, message: 'Error fetching products by category' });
-  }
 };
