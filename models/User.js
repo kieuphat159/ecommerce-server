@@ -31,14 +31,28 @@ class User {
 
   static async findByUsername(username) {
     const [rows] = await db.execute(
-      'SELECT * FROM user WHERE username = ?',
-      [username]
+      'SELECT * FROM user WHERE username = ? OR email = ?',
+      [username, username]
     );
     return rows[0];
   }
 
   static async verifyPassword(password, hasedPassword) {
     return bcrypt.compare(password, hasedPassword);
+  }
+
+  static async getSellerMail() {
+    const query = `
+      SELECT email
+      FROM user
+      WHERE role = ?
+    `
+    try {
+      const [rows] = await db.query(query, ['seller']);
+      return rows[0].email;
+    } catch (err) {
+      throw err;
+    }
   }
 }
 

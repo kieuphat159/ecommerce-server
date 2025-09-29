@@ -1,4 +1,5 @@
 const order = require('../models/Order');
+const user = require('../models/User')
 const mailer = require('../services/mailer')
 
 exports.placeOrder = async (req, res) => {
@@ -20,6 +21,33 @@ exports.placeOrder = async (req, res) => {
             phoneNumber, 
             emailAddress
         );
+        res.json({
+            success: true,
+            message: 'Order completed',
+            orderId: orderId
+        });
+    } catch (err) {
+        console.error("Order error:", err);
+        res.status(500).json({
+            success: false,
+            message: 'Error completing order'
+        });
+    } finally {
+        const sellerMail = await user.getSellerMail();
+        console.log('seller mail: ', sellerMail);
+
+        await mailer.sendMail(
+            sellerMail,
+            "New order received",
+            `
+                <h2>New order placed</h2>
+                <p>Order ID: <b>${orderId}</b></p>
+                <p>Customer: ${firstName} ${lastName}</p>
+                <p>Email: ${emailAddress}</p>
+                <p>Phone: ${phoneNumber}</p>
+                <p>Payment method: ${paymentMethod}</p>
+            `
+        );
 
         await mailer.sendMail(
             emailAddress,
@@ -35,17 +63,6 @@ exports.placeOrder = async (req, res) => {
                 <p>3legant</p>
             `
         );
-        res.json({
-            success: true,
-            message: 'Order completed',
-            orderId: orderId
-        });
-    } catch (err) {
-        console.error("Order error:", err);
-        res.status(500).json({
-            success: false,
-            message: 'Error completing order'
-        });
     }
 }
 
@@ -103,16 +120,53 @@ exports.getAllOrdersExist = async (req, res) => {
 
 exports.deleteOrder = async (req, res) => {
     const { orderId } = req.params;
+    const orderData = await order.getOrder(orderId);
     try {
+        
+
         await order.deleteOrder(orderId);
+
+        
         res.json({
             success: true,
-            message: 'Cancel order successful'
-        })
+            message: 'Cancel order successful and seller notified'
+        });
     } catch (err) {
-        throw err;
+        console.error("Cancel order error:", err);
+        res.status(500).json({
+            success: false,
+            message: 'Error cancelling order'
+        });
+    } finally {
+
+        if (!orderData) {
+            return res.status(404).json({
+                success: false,
+                message: 'Order not found'
+            });
+        }
+        const sellerMail = await user.getSellerMail();
+
+        if (sellerMail) {
+            await mailer.sendMail(
+                sellerMail,
+                "Order cancelled",
+                `
+                    <h2>Order cancelled</h2>
+                    <p>Order ID: <b>${orderId}</b></p>
+                    <p>Customer: ${orderData.first_name} ${orderData.last_name}</p>
+                    <p>Email: ${orderData.email}</p>
+                    <p>Phone: ${orderData.phone}</p>
+                    <p><b>The customer has cancelled this order.</b></p>
+                `
+            );
+        }
+
     }
-}
+};
+
+
+
 
 exports.getOrderItem = async (req, res) => {
     console.log('okok');

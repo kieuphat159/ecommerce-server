@@ -64,7 +64,8 @@ class ProductEAV {
       WHERE pi_status.value = 1
       GROUP BY pe.entity_id, pv_name.value, pd_price.value, pv_image.value
       ORDER BY 
-        CASE WHEN COALESCE(SUM(isi.quantity), 0) < 10 THEN 1 ELSE 0 END ASC,
+        CASE WHEN COALESCE(SUM(isi.quantity), 0) < 10 THEN 1 
+        ELSE 0 END ASC,
         pe.entity_id DESC
       LIMIT ${Number(limit)} OFFSET ${Number(offset)}
     `;
@@ -87,13 +88,14 @@ class ProductEAV {
       return {
         data: rows,
         pagination: {
-          page,
-          limit,
+          page: Number(page),
+          limit: Number(limit),
           totalItems,
           totalPages
         }
       };
     } catch (error) {
+      console.error('Error in findAll:', error);
       throw error;
     }
   }
@@ -166,7 +168,6 @@ class ProductEAV {
     }
   }
 
-  // Updated findBySellerId method with size and color
   static async findBySellerId(sellerId) {
     const query = `
       SELECT 
@@ -547,7 +548,7 @@ class ProductEAV {
     }
   }
 
-    static async findByCategory(category, page = 1, limit = 4) {
+  static async findByCategory(category, page = 1, limit = 4) {
     const offset = (page - 1) * limit;
 
     const query = `
@@ -591,11 +592,12 @@ class ProductEAV {
         AND c.name LIKE ?
       GROUP BY pe.entity_id
       ORDER BY pe.entity_id DESC
-      LIMIT ${offset}, ${limit}
+      LIMIT ? OFFSET ?
     `;
 
     try {
-      const [rows] = await db.execute(query, [`%${category}%`]);
+      // QUAN TRỌNG: Truyền đúng params!
+      const [rows] = await db.execute(query, [`%${category}%`, Number(limit), Number(offset)]);
 
       const [countResult] = await db.execute(`
         SELECT COUNT(DISTINCT pe.entity_id) as total
@@ -614,13 +616,14 @@ class ProductEAV {
       return {
         data: rows,
         pagination: {
-          page,
-          limit,
+          page: Number(page),
+          limit: Number(limit),
           totalItems,
           totalPages
         }
       };
     } catch (error) {
+      console.error('Error in findByCategory:', error);
       throw error;
     }
   }

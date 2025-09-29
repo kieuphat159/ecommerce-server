@@ -19,14 +19,15 @@ const formatProduct = (product) => {
     seller_name: product.seller_name,
     sku: product.sku,
     status: product.status,
-    categories: product.categories
+    categories: product.categories,
+    quantity: product.total_quantity
   };
   return baseProduct;
 };
 
 exports.getAllProducts = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 4;
+    const limit = parseInt(req.query.limit) || 8;
     const call = new Date();
     try {
         const result = await ProductEAV.findAll(page, limit);
