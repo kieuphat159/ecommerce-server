@@ -1,10 +1,10 @@
 const nodemailer = require("nodemailer");
 
 const transporter = nodemailer.createTransport({
-  service: "gmail", // hoặc SMTP server khác
+  service: "gmail",
   auth: {
-    user: process.env.EMAIL_USER, // địa chỉ Gmail
-    pass: process.env.EMAIL_PASSWORD, // app password (16 ký tự)
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD, 
   },
 });
 

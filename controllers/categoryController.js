@@ -28,6 +28,5 @@ exports.getAllCategory = async (req, res) => {
         })
     } finally {
         const response = new Date();
-        console.log(`getAllCategory executed in ${response - call} ms`);
     }
 }

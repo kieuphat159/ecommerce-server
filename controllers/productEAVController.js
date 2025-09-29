@@ -47,7 +47,6 @@ exports.getAllProducts = async (req, res) => {
     } finally {
         const response = new Date();
         const timeDiff = response - call;
-        console.log(`Get all products response time: ${timeDiff} ms`);
     }
 };
 

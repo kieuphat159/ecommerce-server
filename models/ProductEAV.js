@@ -66,7 +66,7 @@ class ProductEAV {
       ORDER BY 
         CASE WHEN COALESCE(SUM(isi.quantity), 0) < 10 THEN 1 ELSE 0 END ASC,
         pe.entity_id DESC
-      LIMIT ${Number(offset)}, ${Number(limit)}
+      LIMIT ${Number(limit)} OFFSET ${Number(offset)}
     `;
 
     try {
@@ -97,8 +97,6 @@ class ProductEAV {
       throw error;
     }
   }
-
-
 
   static async findById(entityId) {
     const query = `
