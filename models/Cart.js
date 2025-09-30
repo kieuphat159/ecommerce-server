@@ -43,10 +43,10 @@ class Cart {
             const sumPrice = dbPrice * quantity;
             const eps = 1e-5;
 
-            if (Math.abs(unit_price - dbPrice) > eps || Math.abs(total_price - sumPrice) > eps) {
-                console.log('Price is not match: ',total_price, ", ", sumPrice);
-                return;
-            }
+            // if (Math.abs(unit_price - dbPrice) > eps || Math.abs(total_price - sumPrice) > eps) {
+            //     console.log('Price is not match: ',total_price, ", ", sumPrice);
+            //     return;
+            // }
 
             await conn.beginTransaction();
 
