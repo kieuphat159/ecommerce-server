@@ -39,6 +39,7 @@ class ProductEAV {
         pe.entity_id,
         pv_name.value AS name,
         pd_price.value AS price,
+        pv_description.value AS description,
         pv_image.value AS image_path,
         COALESCE(SUM(isi.quantity), 0) AS total_quantity
       FROM product_entity pe
@@ -54,6 +55,12 @@ class ProductEAV {
       LEFT JOIN product_entity_varchar pv_image 
         ON pe.entity_id = pv_image.entity_id 
         AND pv_image.attribute_id = 3
+
+      -- description
+      LEFT JOIN product_entity_text pv_description
+        ON pe.entity_id = pv_description.entity_id
+        AND pv_description.attribute_id = 4
+
       -- Status
       LEFT JOIN product_entity_int pi_status 
         ON pe.entity_id = pi_status.entity_id 

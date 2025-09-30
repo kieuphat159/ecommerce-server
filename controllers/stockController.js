@@ -66,3 +66,16 @@ exports.addStockQuantity = async (req, res) => {
         res.status(500).json({ success: false, message: 'Error adding stock quantity', error: err.message });
     }
 };
+
+exports.getTotalQuantity = async(req, res) => {
+  const { productId } = req.params;
+  try {
+    const response = await stock.getTotalProductQuantity(productId);
+    res.json({
+      success: true,
+      data: response
+    })
+  } catch (err) {
+    throw err;
+  }
+}
