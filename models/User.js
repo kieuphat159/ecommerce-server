@@ -54,6 +54,21 @@ class User {
       throw err;
     }
   }
+
+  static async getUserMail(cartId) {
+    const query = `
+      SELECT user.email
+      FROM user JOIN cart
+      ON user.user_id = cart.user_id
+      WHERE cart_id = ?
+    `
+    try {
+      const [rows] = await db.query(query, [cartId]);
+      return rows[0].email;
+    } catch (err) {
+      throw err;
+    }
+  }
 }
 
 module.exports = User;

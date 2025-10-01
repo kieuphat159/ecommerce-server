@@ -124,7 +124,7 @@ class ProductEAV {
         -- Color (for clothes)  
         pv_color.value as color,
         -- Categories
-        GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') as categories
+        GROUP_CONCAT(DISTINCT c.name SEPARATOR ', ') as category
 
       FROM product_entity pe   
 
@@ -376,13 +376,13 @@ class ProductEAV {
       }
       
       await connection.commit();
-      console.log('Create in model: ', productData);
+      // console.log('Create in model: ', productData);
       
       return entityId;
       
     } catch (error) {
       await connection.rollback();
-      console.log('Create failed:', error);
+      // console.log('Create failed:', error);
       throw error;
     } finally {
       connection.release();
@@ -529,7 +529,7 @@ class ProductEAV {
       }
       
       await connection.commit();
-      console.log('UPDATE COMPLETED SUCCESSFULLY');
+      // console.log('UPDATE COMPLETED SUCCESSFULLY');
       return true;
       
     } catch (error) {
@@ -628,6 +628,51 @@ class ProductEAV {
     } catch (error) {
       console.error('Error in findByCategory:', error);
       throw error;
+    }
+  }
+
+  static async getBestSellers() {
+    const query = `
+      SELECT 
+          pe.entity_id,
+          pv_name.value AS name,
+          pv_image.value AS img,
+          pd_price.value AS price,
+          SUM(oi.quantity) AS sold_quantity,
+          SUM(oi.total_price) AS revenue
+      FROM order_item oi
+      JOIN \`order\` o 
+          ON oi.order_id = o.order_id
+          AND o.status = 'completed'
+      JOIN product_variant pv 
+          ON oi.variant_id = pv.variant_id
+      JOIN product_entity pe 
+          ON pv.product_id = pe.entity_id
+
+      -- name
+      LEFT JOIN product_entity_varchar pv_name 
+          ON pe.entity_id = pv_name.entity_id
+          AND pv_name.attribute_id = 1   -- name
+
+      -- image
+      LEFT JOIN product_entity_varchar pv_image 
+          ON pe.entity_id = pv_image.entity_id
+          AND pv_image.attribute_id = 3  -- image
+
+      -- price
+      LEFT JOIN product_entity_decimal pd_price 
+          ON pe.entity_id = pd_price.entity_id
+          AND pd_price.attribute_id = 2  -- price
+
+      GROUP BY pe.entity_id, pv_name.value, pv_image.value, pd_price.value
+      ORDER BY sold_quantity DESC
+      LIMIT 5;
+    `
+    try {
+      const [rows] = await db.query(query);
+      return rows;
+    } catch (err) {
+        throw err;
     }
   }
 }

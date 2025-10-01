@@ -173,7 +173,7 @@ class ProductOption {
         `;  
         try {
             const [rows] = await db.execute(query, [entityId]);
-            //console.log(rows);
+            //// console.log(rows);
             return rows[0];
         } catch (err) {
             throw err;

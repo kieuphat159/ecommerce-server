@@ -44,7 +44,7 @@ class Cart {
             const eps = 1e-5;
 
             // if (Math.abs(unit_price - dbPrice) > eps || Math.abs(total_price - sumPrice) > eps) {
-            //     console.log('Price is not match: ',total_price, ", ", sumPrice);
+            //     // console.log('Price is not match: ',total_price, ", ", sumPrice);
             //     return;
             // }
 

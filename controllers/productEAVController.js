@@ -19,7 +19,7 @@ const formatProduct = (product) => {
     seller_name: product.seller_name,
     sku: product.sku,
     status: product.status,
-    categories: product.categories,
+    category: product.category,
     quantity: product.total_quantity
   };
   return baseProduct;
@@ -75,7 +75,7 @@ exports.getProductById = async (req, res) => {
             data: formattedProduct
         });
     } catch (error) {
-        console.log('Error: ', error);
+        // console.log('Error: ', error);
         res.status(500).json({
             success: false,
             message: 'Error fetching product',
@@ -213,7 +213,7 @@ exports.createProduct = async (req, res) => {
             message: 'Product created successfully',
             data: responseData
         });
-        console.log('Create: ', productData);
+        // console.log('Create: ', productData);
         
     } catch (error) {
         await connection.rollback();
@@ -344,7 +344,7 @@ exports.updateProduct = async (req, res) => {
 };
 
 exports.deleteProduct = async (req, res) => {
-    console.log('delete');
+    // console.log('delete');
     try {
         const { id } = req.params;
         if (!id || isNaN(parseInt(id))) {
@@ -374,3 +374,19 @@ exports.deleteProduct = async (req, res) => {
         });
     }
 };
+
+
+exports.getBestSellers = async (req, res) => {
+    try {
+        const result = await ProductEAV.getBestSellers();
+        res.json({
+            success: true,
+            data: result
+        })
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: err
+        })
+    }
+}

@@ -32,7 +32,7 @@ exports.getAllOptionsWithStock = async (req, res) => {
       data: Object.values(optionsMap)
     });
   } catch (err) {
-    console.log('Err: ', err);
+    // console.log('Err: ', err);
     res.status(500).json({
       success: false,
       message: 'Error fetching options with stock',
@@ -56,7 +56,7 @@ exports.getValues = async (req, res) => {
             data: formattedValues
         })
     } catch (err) {
-        console.log('Err: ', err);
+        // console.log('Err: ', err);
         res.status(500).json({
             success: false,
             message: 'Error fetching option values',
@@ -79,7 +79,7 @@ exports.createOption = async (req, res) => {
 };
 
 exports.createOptionValue = async (req, res) => {
-  console.log('ok');
+  // console.log('ok');
   try {
     const { option_id, value } = req.body;
     if (!option_id || !value) {
@@ -96,7 +96,7 @@ exports.createOptionValue = async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Error creating option value', error: err.message });
-    console.log('Err: ', err);
+    // console.log('Err: ', err);
   }
 };
 
@@ -124,7 +124,7 @@ exports.getAllOption = async (req, res) => {
             data: formattedOptions
         })
     } catch (err) {
-        console.log('Err: ', err);
+        // console.log('Err: ', err);
         res.status(500).json({
             success: false,
             message: 'Error fetching options',

@@ -25,8 +25,8 @@ router.post('/create',
   productEAVController.createProduct
 );
 
-router.get('/seller/products/:id', 
-  //authMiddleware.authenticateToken,
-  productEAVController.getProductsBySellerId);
+router.get('/seller/products/:id', productEAVController.getProductsBySellerId);
+
+router.get('/seller/bestsellers', productEAVController.getBestSellers)
 
 module.exports = router;
