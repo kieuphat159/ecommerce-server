@@ -4,6 +4,7 @@ const mailer = require('../services/mailer')
 
 exports.placeOrder = async (req, res) => {
     const { cartId } = req.params;
+    let orderId;
     const { 
         paymentMethod, 
         firstName, 
@@ -13,7 +14,7 @@ exports.placeOrder = async (req, res) => {
     } = req.body;
 
     try {
-        const orderId = await order.placeOrder(
+        orderId = await order.placeOrder(
             cartId, 
             paymentMethod, 
             firstName, 

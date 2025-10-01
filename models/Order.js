@@ -309,5 +309,11 @@ class Order {
             throw err;
         }
     }
+
+    static async getRevenue() {
+        const query = `
+            
+        `
+    }
 }
 module.exports = Order;
