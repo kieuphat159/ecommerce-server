@@ -4,6 +4,8 @@ const mailer = require('../services/mailer')
 
 exports.placeOrder = async (req, res) => {
     const { cartId } = req.params;
+    let orderId;
+    let mailTo;
     const { 
         paymentMethod, 
         firstName, 
@@ -11,9 +13,13 @@ exports.placeOrder = async (req, res) => {
         phoneNumber, 
         emailAddress 
     } = req.body;
-
+    if (!emailAddress) {
+        mailTo = await user.getUserMail(cartId);
+    } else {
+        mailTo = emailAddress;
+    }
     try {
-        const orderId = await order.placeOrder(
+        orderId = await order.placeOrder(
             cartId, 
             paymentMethod, 
             firstName, 
@@ -34,7 +40,8 @@ exports.placeOrder = async (req, res) => {
         });
     } finally {
         const sellerMail = await user.getSellerMail();
-        console.log('seller mail: ', sellerMail);
+        // console.log('seller mail: ', sellerMail);
+        // console.log('email address: ', mailTo);
 
         await mailer.sendMail(
             sellerMail,
@@ -50,7 +57,7 @@ exports.placeOrder = async (req, res) => {
         );
 
         await mailer.sendMail(
-            emailAddress,
+            mailTo,
             "Order confirmation",
             `
                 <h2>Dear ${firstName} ${lastName},</h2>
@@ -70,7 +77,6 @@ exports.getOrder = async (req, res) => {
     const { orderId } = req.params;
     try {
         const data = await order.getOrder(orderId);
-        console.log(data);
         res.json({
             success: true,
             data: data
@@ -169,7 +175,6 @@ exports.deleteOrder = async (req, res) => {
 
 
 exports.getOrderItem = async (req, res) => {
-    console.log('okok');
     try {
         const { orderId } = req.params;
         const orderData = await order.getOrderItem(orderId);
@@ -201,6 +206,18 @@ exports.setStatus = async (req, res) => {
             success: false,
             message: 'Error updating order status'
         })
+        throw err;
+    }
+}
+
+exports.getRevenue = async (req, res) => {
+    try {
+        const result = await order.getRevenue();
+        res.json({
+            success: true,
+            data: result
+        })
+    } catch (err) {
         throw err;
     }
 }

@@ -18,7 +18,7 @@ exports.getAllStocks = async (req, res) => {
             data: formattedStocks
         })
     } catch (err) {
-        console.log('Err: ', err);
+        // console.log('Err: ', err);
         res.status(500).json({
             success: false,
             message: 'Error fetching stocks',

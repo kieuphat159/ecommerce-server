@@ -20,7 +20,7 @@ exports.getAllCategory = async (req, res) => {
             data: formattedCategories
         });
     } catch (err) {
-        console.log('Error: ', err);
+        // console.log('Error: ', err);
         res.status(500).json({
             success: false,
             message: 'Error fetching categories',

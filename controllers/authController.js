@@ -15,13 +15,13 @@ exports.signup = async (req, res) => {
 
     let existingUser = await User.findByEmail(email);
     if (existingUser) {
-      console.log(`Signup failed: Email ${email} already exists`);
+      // console.log(`Signup failed: Email ${email} already exists`);
       return res.status(400).json({ message: 'Email already exists' });
     }
     
     existingUser = await User.findByUsername(username);
     if (existingUser) {
-      console.log(`Signup failed: Username ${username} already exists`);
+      // console.log(`Signup failed: Username ${username} already exists`);
       return res.status(400).json({ message: 'Username already exists' });
     }
 
@@ -40,15 +40,15 @@ exports.signup = async (req, res) => {
 exports.signin = async (req, res) => {
   try {
     const { username, password } = req.body;
-    console.log("Signin body:", req.body);
+    // console.log("Signin body:", req.body);
     const user = await User.findByUsername(username);
     if (!user) {
-      console.log(`Signin failed: Username ${username} not found`);
+      // console.log(`Signin failed: Username ${username} not found`);
       return res.status(400).json({ message: 'Invalid username or password' });
     }
     const isPasswordValid = await User.verifyPassword(password, user.password_hash);
     if (!isPasswordValid) {
-      console.log(`Signin failed: Invalid password for username ${username}`);
+      // console.log(`Signin failed: Invalid password for username ${username}`);
       return res.status(400).json({ message: 'Invalid username or password' });
     }
     const token = generateToken(user.id, user.role);
@@ -80,7 +80,7 @@ exports.refresh = async (req, res) => {
 
     jwt.verify(refreshToken, process.env.JWT_REFRESH_KEY, async (err, decoded) => {
       if (err) {
-        console.log('Refresh token verification failed:', err.message);
+        // console.log('Refresh token verification failed:', err.message);
         return res.status(403).json({ message: 'Invalid refresh token' });
       }
 
@@ -104,7 +104,7 @@ exports.refresh = async (req, res) => {
         res.status(200).json({
           message: 'Token refreshed successfully',
           token: newAccessToken,
-          expiresIn: '15m'
+          expiresIn: '30m'
         });
 
       } catch (dbError) {

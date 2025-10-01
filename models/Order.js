@@ -2,7 +2,7 @@ const db = require('../config/database')
 
 class Order {
     static async placeOrder(cart_id, payment_method, first_name, last_name, phone_number, email_address) {
-        console.log(cart_id);
+        // console.log(cart_id);
         const connection = await db.getConnection();
         try {
             const [rows] = await db.query(`
@@ -91,7 +91,7 @@ class Order {
 
 
     static async getOrder(order_id) {
-        console.log(order_id);
+        // console.log(order_id);
         try {
             const [rows] = await db.query(`
                 SELECT *
@@ -305,6 +305,20 @@ class Order {
                 SET status = ?
                 WHERE order_id = ?
             `, [status, orderId]);
+        } catch (err) {
+            throw err;
+        }
+    }
+
+    static async getRevenue() {
+        const query = `
+            SELECT COALESCE(SUM(total_amount), 0) AS revenue
+            FROM \`order\`
+            WHERE status = 'completed'
+        `
+        try {
+            const [rows] = await db.query(query);
+            return rows[0].revenue;
         } catch (err) {
             throw err;
         }
