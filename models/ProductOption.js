@@ -219,30 +219,27 @@ class ProductOption {
             SELECT
                 pv.variant_id,
                 pv.sku,
-                COALESCE(stock.total_quantity, 0) AS quantity,  // Lấy Quantity đã tính tổng
-                opts.options                                    // Lấy Options đã gộp chuỗi
+                COALESCE(stock.total_quantity, 0) AS quantity,
+                opts.options,
+                opts.option_key
             FROM product_variant pv
-            
-            // 1. TÍNH TỔNG TỒN KHO TRƯỚC VÀ ĐỘC LẬP
             LEFT JOIN (
                 SELECT variant_id, SUM(quantity) AS total_quantity
                 FROM inventory_stock_item
                 GROUP BY variant_id
             ) stock ON stock.variant_id = pv.variant_id
-            
-            // 2. TẠO CHUỖI OPTIONS ĐỘC LẬP
             LEFT JOIN (
                 SELECT
                     pvov.variant_id,
-                    GROUP_CONCAT(CONCAT(po.name, ':', pov.value) ORDER BY po.option_id SEPARATOR ', ') AS options
+                    GROUP_CONCAT(CONCAT(po.name, ':', pov.value) ORDER BY po.option_id SEPARATOR ', ') AS options,
+                    GROUP_CONCAT(pov.value_id ORDER BY po.option_id SEPARATOR '-') AS option_key
                 FROM product_variant_option_value pvov
                 JOIN product_option_value pov ON pvov.value_id = pov.value_id
                 JOIN product_option po ON pov.option_id = po.option_id
                 GROUP BY pvov.variant_id
             ) opts ON opts.variant_id = pv.variant_id
-            
             WHERE pv.product_id = ?
-            ORDER BY pv.variant_id
+            ORDER BY pv.variant_id;
         `;
         try {
             const [rows] = await db.query(query, [productId]);

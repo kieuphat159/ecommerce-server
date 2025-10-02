@@ -52,7 +52,6 @@ exports.updateStockQuantity = async (req, res) => {
 };
 
 exports.addStockQuantity = async (req, res) => {
-  console.log('add');
     try {
         const { entityId, stockId, quantity, options } = req.body;
 
