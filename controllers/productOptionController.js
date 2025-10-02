@@ -154,3 +154,12 @@ exports.getVariantDetails = async (req, res) => {
         throw err;
     }
   }
+
+exports.getAllVariants = async (req, res) => {
+  try {
+    const variants = await productOption.getAllVariants(req.params.productId);
+    res.json({ success: true, data: variants });
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+}

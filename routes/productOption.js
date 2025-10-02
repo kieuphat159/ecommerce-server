@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const productOptionController = require('../controllers/productOptionController')
 
+router.get('/seller/product-variants/:productId', productOptionController.getAllVariants)
 router.get('/product-default-quantity/:entityId', productOptionController.getDefaultQuantity);
 router.get('/seller/product-options/:id', productOptionController.getAllOption);
 router.get('/product-options/:id', productOptionController.getAllOptionsWithStock);

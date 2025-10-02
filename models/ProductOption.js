@@ -59,17 +59,23 @@ class ProductOption {
     }
 
     static async getOrCreateVariantId(entityId, options = {}) {
-        const queryCheck = `
-            SELECT pv.variant_id
-            FROM product_variant pv
-            WHERE pv.product_id = ?
-        `;
+        const valueIds = Object.values(options).filter(v => v !== null).map(Number);
+        
         try {
-            const [existingVariants] = await db.execute(queryCheck, [entityId]);
-            if (existingVariants.length > 0) {
-                return existingVariants[0].variant_id;
+            if (valueIds.length === 0) {
+                // Trường hợp không có tùy chọn: Tái sử dụng biến thể mặc định nếu có
+                const queryCheck = `
+                    SELECT pv.variant_id
+                    FROM product_variant pv
+                    WHERE pv.product_id = ?
+                `;
+                const [existingVariants] = await db.execute(queryCheck, [entityId]);
+                if (existingVariants.length > 0) {
+                    return existingVariants[0].variant_id;
+                }
             }
-
+            
+            // Tạo biến thể mới (cho trường hợp có tùy chọn hoặc không có biến thể mặc định)
             const sku = `${entityId}-${Date.now()}`;
             const queryInsert = `
                 INSERT INTO product_variant (product_id, sku, price)
@@ -78,7 +84,7 @@ class ProductOption {
             const [result] = await db.execute(queryInsert, [entityId, sku, entityId]);
             const newVariantId = result.insertId;
 
-            const valueIds = Object.values(options).filter(v => v !== null).map(Number);
+            // Gắn các giá trị tùy chọn (option values) vào biến thể mới
             for (const valueId of valueIds) {
                 await db.execute(
                     `INSERT INTO product_variant_option_value (variant_id, value_id)
@@ -92,8 +98,6 @@ class ProductOption {
             throw err;
         }
     }
-
-
     static async getVariantIdByOptions(entityId, options) {
         try {
             const valueIds = Object.values(options).filter(v => v !== null).map(Number);
@@ -121,26 +125,35 @@ class ProductOption {
     static async getOptionsWithStock(productId) {
         const query = `
             SELECT 
-                po.option_id,
-                po.name AS option_name,
-                pov.value_id,
-                pov.value AS option_value,
-                COALESCE(SUM(isi.quantity), 0) AS total_quantity
-            FROM product_entity pe
-            JOIN product_variant pv 
-                ON pe.entity_id = pv.product_id
-            JOIN product_variant_option_value pvov 
-                ON pv.variant_id = pvov.variant_id
+                po.option_id, 
+                po.name AS option_name, 
+                pov.value_id, 
+                pov.value AS option_value, 
+                COALESCE(SUM(stock.quantity), 0) AS total_quantity
+            FROM product_option po
             JOIN product_option_value pov 
-                ON pvov.value_id = pov.value_id
-            JOIN product_option po 
-                ON pov.option_id = po.option_id
-            LEFT JOIN inventory_stock_item isi 
-                ON pv.variant_id = isi.variant_id
-            WHERE pe.entity_id = ? 
-            GROUP BY po.option_id, po.name, pov.value_id, pov.value
-            ORDER BY po.option_id, pov.value_id;
-        `
+                ON po.option_id = pov.option_id
+            LEFT JOIN product_variant_option_value pvov 
+                ON pov.value_id = pvov.value_id
+            LEFT JOIN product_variant pv 
+                ON pvov.variant_id = pv.variant_id
+            LEFT JOIN (
+                SELECT variant_id, SUM(quantity) AS quantity
+                FROM inventory_stock_item
+                GROUP BY variant_id
+            ) stock 
+                ON pv.variant_id = stock.variant_id
+            WHERE po.product_id = ?
+            GROUP BY 
+                po.option_id, 
+                po.name, 
+                pov.value_id, 
+                pov.value
+            ORDER BY 
+                po.option_id, 
+                pov.value_id;
+        `;
+        
         try {
             const [rows] = await db.query(query, [productId]);
             return rows;
@@ -148,6 +161,7 @@ class ProductOption {
             throw err;
         }
     }
+
 
     static async getAllOption(entityId) {
         const query = `
@@ -173,7 +187,6 @@ class ProductOption {
         `;  
         try {
             const [rows] = await db.execute(query, [entityId]);
-            //// console.log(rows);
             return rows[0];
         } catch (err) {
             throw err;
@@ -182,15 +195,63 @@ class ProductOption {
 
     static async getVariantDetails(variantId) {
         const query = `
-            SELECT * FROM product_variant WHERE variant_id = ?
+            SELECT
+                pv.*,
+                COALESCE(stock.total_quantity, 0) AS quantity
+            FROM product_variant pv
+            LEFT JOIN (
+                SELECT variant_id, SUM(quantity) AS total_quantity
+                FROM inventory_stock_item
+                GROUP BY variant_id
+            ) stock ON stock.variant_id = pv.variant_id
+            WHERE pv.variant_id = ?
         `;
         try {
             const [rows] = await db.execute(query, [variantId]);
-            return rows[0];
+            return rows.length > 0 ? rows[0] : {};
         } catch (err) {
             throw err;
         }
     }
+
+    static async getAllVariants(productId) {
+        const query = `
+            SELECT
+                pv.variant_id,
+                pv.sku,
+                COALESCE(stock.total_quantity, 0) AS quantity,  // Lấy Quantity đã tính tổng
+                opts.options                                    // Lấy Options đã gộp chuỗi
+            FROM product_variant pv
+            
+            // 1. TÍNH TỔNG TỒN KHO TRƯỚC VÀ ĐỘC LẬP
+            LEFT JOIN (
+                SELECT variant_id, SUM(quantity) AS total_quantity
+                FROM inventory_stock_item
+                GROUP BY variant_id
+            ) stock ON stock.variant_id = pv.variant_id
+            
+            // 2. TẠO CHUỖI OPTIONS ĐỘC LẬP
+            LEFT JOIN (
+                SELECT
+                    pvov.variant_id,
+                    GROUP_CONCAT(CONCAT(po.name, ':', pov.value) ORDER BY po.option_id SEPARATOR ', ') AS options
+                FROM product_variant_option_value pvov
+                JOIN product_option_value pov ON pvov.value_id = pov.value_id
+                JOIN product_option po ON pov.option_id = po.option_id
+                GROUP BY pvov.variant_id
+            ) opts ON opts.variant_id = pv.variant_id
+            
+            WHERE pv.product_id = ?
+            ORDER BY pv.variant_id
+        `;
+        try {
+            const [rows] = await db.query(query, [productId]);
+            return rows;
+        } catch (err) {
+            throw err;
+        }
+    }
+
 }
 
 module.exports = ProductOption;
