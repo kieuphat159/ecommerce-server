@@ -172,22 +172,6 @@ exports.createProduct = async (req, res) => {
             category.toLowerCase().includes('jeans')
         );
 
-        if (isClothes) {
-            if (!size || size.trim() === '') {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Size is required for clothing products'
-                });
-            }
-            
-            if (!color || color.trim() === '') {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Color is required for clothing products'
-                });
-            }
-        }
-
         const productData = {
             sku: `PROD-${Date.now()}`,   
             name,
@@ -285,22 +269,6 @@ exports.updateProduct = async (req, res) => {
             category.toLowerCase().includes('shirt') || 
             category.toLowerCase().includes('jeans')
         ) || isClothesCategory(existingProduct.categories);
-
-        if (isClothes) {
-            if (size !== undefined && (!size || size.trim() === '')) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Size is required for clothing products'
-                });
-            }
-            
-            if (color !== undefined && (!color || color.trim() === '')) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'Color is required for clothing products'
-                });
-            }
-        }
         
         const productData = {
             sku: existingProduct.sku,

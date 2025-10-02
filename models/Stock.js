@@ -55,7 +55,6 @@ class Stock {
 
     static async addStockQuantity(entityId, stockId, quantity, options = {}) {
         try {
-
             let variantId;
 
             if (await ProductOption.hasVariants(entityId)) {
@@ -78,8 +77,8 @@ class Stock {
             let newQuantity;
 
             if (rows.length > 0) {
-                const currentQuantity = rows[0].quantity || 0;
-                newQuantity = currentQuantity + quantity;
+                // absolute update: set bằng quantity truyền vào
+                newQuantity = quantity;
 
                 await db.execute(
                     `UPDATE inventory_stock_item 
@@ -89,14 +88,14 @@ class Stock {
                 );
 
             } else {
-            newQuantity = quantity;
+                // nếu chưa có thì insert
+                newQuantity = quantity;
 
-            await db.execute(
-                `INSERT INTO inventory_stock_item (variant_id, stock_id, quantity) 
-                VALUES (?, ?, ?)`,
-                [variantId, stockId, newQuantity]
-            );
-
+                await db.execute(
+                    `INSERT INTO inventory_stock_item (variant_id, stock_id, quantity) 
+                    VALUES (?, ?, ?)`,
+                    [variantId, stockId, newQuantity]
+                );
             }
 
             return { success: true, variantId, newQuantity };
@@ -104,6 +103,7 @@ class Stock {
             throw err;
         }
     }
+
 
     static async getAllStockQuantities(entityId) {
         const query = `
