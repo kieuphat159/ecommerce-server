@@ -28,14 +28,16 @@ const formatProduct = (product) => {
 exports.getProducts = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 8;
+    let { size = 'All' } = req.query;
+    size = size.trim().toUpperCase();
     const category = req.query.category?.trim() || null;
     try {
         let result;
 
         if (category) {
-            result = await ProductEAV.findByCategory(category, page, limit);
+            result = await ProductEAV.findByCategory(category, page, limit, size);
         } else {
-            result = await ProductEAV.findAll(page, limit);
+            result = await ProductEAV.findAll(page, limit, size);
         }
 
         const formattedProducts = result.data.map(product => formatProduct(product));
