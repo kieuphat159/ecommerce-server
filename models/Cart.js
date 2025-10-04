@@ -18,61 +18,79 @@ class Cart {
     }
 
     static async addToCart(userId, variantId, quantity, unit_price, total_price) {
-        const conn = await db.getConnection();
-        try {
-            let cart_id = await Cart.checkExistCart(userId);
-            if (cart_id === -1) {
-                const [result] = await conn.query(`
-                    INSERT INTO cart(user_id, status, total_amount)
-                    VALUES(?, 'pending', 0.00)
-                `, [userId]);
-                cart_id = result.insertId;
-            }
-
-            const [check] = await conn.query(`
-                SELECT price
-                FROM product_variant
-                WHERE variant_id = ?
-            `, [variantId]);
-
-            if (check.length === 0) {
-                throw new Error("Variant không tồn tại");
-            }
-
-            const dbPrice = parseFloat(check[0].price);
-            const sumPrice = dbPrice * quantity;
-            const eps = 1e-5;
-
-            // if (Math.abs(unit_price - dbPrice) > eps || Math.abs(total_price - sumPrice) > eps) {
-            //     // console.log('Price is not match: ',total_price, ", ", sumPrice);
-            //     return;
-            // }
-
-            await conn.beginTransaction();
-
-            await conn.query(`
-                INSERT INTO cart_item(cart_id, variant_id, unit_price, total_price, quantity)
-                VALUES(?, ?, ?, ?, ?)
-                ON DUPLICATE KEY UPDATE 
-                    quantity = quantity + VALUES(quantity),
-                    total_price = unit_price * quantity
-            `, [cart_id, variantId, unit_price, total_price, quantity]);
-
-            await conn.query(`
-                UPDATE cart
-                SET total_amount = total_amount + ?
-                WHERE cart_id = ?
-            `, [total_price, cart_id]);
-
-            await conn.commit();
-            return cart_id;
-        } catch (err) {
-            await conn.rollback();
-            throw new Error(err.message);
-        } finally {
-            conn.release();
+    const conn = await db.getConnection();
+    try {
+        let cart_id = await Cart.checkExistCart(userId);
+        if (cart_id === -1) {
+            const [result] = await conn.query(`
+                INSERT INTO cart(user_id, status, total_amount)
+                VALUES(?, 'pending', 0.00)
+            `, [userId]);
+            cart_id = result.insertId;
         }
+
+        const [check] = await conn.query(`
+            SELECT price
+            FROM product_variant
+            WHERE variant_id = ?
+        `, [variantId]);
+
+        if (check.length === 0) {
+            throw new Error("Variant không tồn tại");
+        }
+
+        const stock_id = 1;
+
+        const [stockRows] = await conn.query(`
+            SELECT quantity 
+            FROM inventory_stock_item
+            WHERE variant_id = ? AND stock_id = ?
+        `, [variantId, stock_id]);
+
+        const [checkQuantity] = await conn.query(`
+            SELECT quantity 
+            FROM cart_item
+            WHERE cart_id = ? AND variant_id = ?
+        `, [cart_id, variantId]);
+
+        const currentQuantity = checkQuantity.length > 0 ? checkQuantity[0].quantity : 0;
+
+        if (stockRows[0].quantity < quantity + currentQuantity) {
+            throw new Error('Not enough stock for variant ' + variantId);
+        }
+
+        await conn.beginTransaction();
+
+        await conn.query(`
+            INSERT INTO cart_item(cart_id, variant_id, unit_price, total_price, quantity)
+            VALUES(?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE 
+                quantity = cart_item.quantity + VALUES(quantity),
+                total_price = (cart_item.quantity + VALUES(quantity)) * VALUES(unit_price)
+        `, [cart_id, variantId, unit_price, total_price, quantity]);
+
+        await conn.query(`
+            UPDATE cart
+            SET total_amount = total_amount + ?
+            WHERE cart_id = ?
+        `, [total_price, cart_id]);
+
+        const [rows] = await conn.query(`
+            SELECT COALESCE(SUM(quantity), 0) AS total_quantity
+            FROM cart_item
+            WHERE cart_id = ?
+        `, [cart_id]);
+
+        await conn.commit();
+        return rows[0].total_quantity;
+    } catch (err) {
+        await conn.rollback();
+        throw new Error(err.message);
+    } finally {
+        conn.release();
     }
+}
+
 
     static async getCartItem(userId) {
         try {
@@ -163,26 +181,36 @@ class Cart {
                 SELECT total_price, cart_id
                 FROM cart_item
                 WHERE cart_item_id = ?
-            `, [cart_item_id]
-            )
+            `, [cart_item_id]);
+
             if (rows.length === 0) {
                 throw new Error("Cart item không tồn tại");
             }
+
             const price = rows[0].total_price;
             const cart_id = rows[0].cart_id;
+
             await connection.beginTransaction();
+
             await connection.query(`
                 DELETE FROM cart_item
                 WHERE cart_item_id = ?
-            `, [cart_item_id]
-            );
+            `, [cart_item_id]);
+
             await connection.query(`
                 UPDATE cart
-                SET total_amount = total_amount - ?
+                SET total_amount = GREATEST(total_amount - ?, 0)
                 WHERE cart_id = ?
-            `, [price, cart_id]
-            )
+            `, [price, cart_id]);
+
+            const [row] = await connection.query(`
+                SELECT COALESCE(SUM(quantity), 0) AS total_quantity
+                FROM cart_item
+                WHERE cart_id = ?
+            `, [cart_id]);
+
             await connection.commit();
+            return row[0].total_quantity;
         } catch (err) {
             await connection.rollback();
             throw err;
@@ -190,6 +218,7 @@ class Cart {
             connection.release();
         }
     }
+
 
     static async getCartQuantity(userId) {
         let cart_id = await Cart.checkExistCart(userId);

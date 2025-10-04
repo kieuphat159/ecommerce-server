@@ -6,7 +6,6 @@ exports.addToCart = async (req, res) => {
         const {variantId, quantity, unit_price, total_price} = req.body;
         if (!userId || !variantId || quantity == null || unit_price == null || total_price == null) {
             const msg = 'Missing value';
-            // console.log('Err: ', msg);
             return res.status(500).json({
                 success: false,
                 message: msg
@@ -46,10 +45,11 @@ exports.removeCartItem = async (req, res) => {
     try {
         const { cartItemId } = req.params;
         // console.log(cartItemId);
-        await cart.removeCartItem(cartItemId);
+        const result = await cart.removeCartItem(cartItemId);
         res.json({
             success: true,
-            message: 'Remove item successful'
+            message: 'Remove item successful',
+            data: result
         });
     } catch (err) {
         res.status(500).json({
